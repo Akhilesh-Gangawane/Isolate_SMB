@@ -9,6 +9,7 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Loader2, AlertCircle } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { IsolateLogo } from '../components/ui'
 
 export default function AuthCallbackPage() {
   const navigate = useNavigate()
@@ -52,11 +53,8 @@ export default function AuthCallbackPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-      <div className="flex items-center gap-2.5 mb-4">
-        <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center">
-          <span className="text-white font-bold text-sm">S</span>
-        </div>
-        <span className="text-xl font-semibold text-slate-900">SMBFlow</span>
+      <div className="mb-4">
+        <IsolateLogo size="md" isDark={false} />
       </div>
 
       {error ? (

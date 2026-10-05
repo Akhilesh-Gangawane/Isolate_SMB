@@ -1,7 +1,7 @@
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Sun, Moon, Menu } from 'lucide-react'
-import { cn } from '../ui'
+import { cn, GlassSurface } from '../ui'
 
 export function ThemeToggle({ isDark, toggle }) {
   return (
@@ -32,22 +32,26 @@ export function ThemeToggle({ isDark, toggle }) {
 
 export function PageHeader({ children, onMobileMenuClick }) {
   return (
-    <header className="h-16 flex items-center justify-between px-4 sm:px-6 bg-[rgb(var(--bg-surface))] border-b border-[rgb(var(--border-subtle))] z-10 flex-shrink-0">
-      {/* Left: Breadcrumbs & Mobile Menu */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={onMobileMenuClick}
-          className="lg:hidden p-1.5 -ml-1.5 rounded-lg hover:bg-[rgb(var(--bg-hover))] text-[rgb(var(--text-muted))] transition-colors"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
-        {children[0]}
-      </div>
+    <header className="h-16 flex-shrink-0 bg-transparent border-b border-[rgb(var(--border-subtle))] z-10 sticky top-0">
+      <GlassSurface width="100%" height="100%" backgroundOpacity={0.05} borderRadius={0}>
+        <div className="w-full h-full flex items-center justify-between px-4 sm:px-6">
+          {/* Left: Breadcrumbs & Mobile Menu */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onMobileMenuClick}
+              className="lg:hidden p-1.5 -ml-1.5 rounded-lg hover:bg-[rgb(var(--bg-hover))] text-[rgb(var(--text-muted))] transition-colors"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            {children[0]}
+          </div>
 
-      {/* Right: Actions & User */}
-      <div className="flex items-center gap-3 sm:gap-4">
-        {children[1]}
-      </div>
+          {/* Right: Actions & User */}
+          <div className="flex items-center gap-3 sm:gap-4">
+            {children[1]}
+          </div>
+        </div>
+      </GlassSurface>
     </header>
   )
 }

@@ -2,7 +2,9 @@ param()
 
 Set-Location $PSScriptRoot
 
-Write-Host "Starting SMBFlow Local Environment..." -ForegroundColor Cyan
+Write-Host "==========================================" -ForegroundColor Cyan
+Write-Host "  Starting Isolate Autonomous Platform     " -ForegroundColor Cyan
+Write-Host "==========================================" -ForegroundColor Cyan
 
 # =============================================================================
 # Process & Port Helper Functions for Safe Project Switching
@@ -143,6 +145,43 @@ function Ensure-PortReadyForProject {
 }
 
 # =============================================================================
+# 0. Environment Setup & Dependency Verification (Clone & Run Auto-Setup)
+# =============================================================================
+
+# Root .env check
+if (-not (Test-Path ".env") -and (Test-Path ".env.example")) {
+    Copy-Item ".env.example" ".env"
+    Write-Host "Auto-created root .env from .env.example" -ForegroundColor Green
+}
+
+# Frontend .env check
+if (-not (Test-Path "frontend\.env") -and (Test-Path "frontend\.env.example")) {
+    Copy-Item "frontend\.env.example" "frontend\.env"
+    Write-Host "Auto-created frontend\.env from frontend\.env.example" -ForegroundColor Green
+}
+
+# Python virtual environment check
+$pythonExe = ".\venv\Scripts\python.exe"
+if (-not (Test-Path $pythonExe)) {
+    Write-Host "Python virtual environment not found. Creating 'venv'..." -ForegroundColor Cyan
+    python -m venv venv
+    if (Test-Path ".\venv\Scripts\pip.exe") {
+        Write-Host "Installing backend dependencies from requirements.txt..." -ForegroundColor Cyan
+        .\venv\Scripts\pip.exe install -r requirements.txt
+    } else {
+        Write-Host "Notice: Please ensure Python 3.10+ is installed on PATH." -ForegroundColor Yellow
+    }
+}
+
+# Frontend dependencies check
+if (-not (Test-Path "frontend\node_modules")) {
+    Write-Host "Frontend dependencies not found. Running npm install in frontend..." -ForegroundColor Cyan
+    Push-Location frontend
+    npm install
+    Pop-Location
+}
+
+# =============================================================================
 # 1. Start Infrastructure & Fixtures
 # =============================================================================
 
@@ -156,7 +195,7 @@ try {
 $emailFixture = Join-Path $PSScriptRoot "db\seed\data\email_messages.json"
 if (-not (Test-Path $emailFixture)) {
     Write-Host "Generating Email Summarizer fixture (email_messages.json)..." -ForegroundColor Cyan
-    .\venv\Scripts\python.exe db/seed/email_seed.py
+    & $pythonExe db/seed/email_seed.py
     if ($LASTEXITCODE -ne 0) {
         Write-Host "WARNING: Email fixture generation failed. The Email Summarizer workflow may have no data." -ForegroundColor Yellow
         Write-Host "         Retry manually with: .\venv\Scripts\python.exe db/seed/email_seed.py" -ForegroundColor Yellow
@@ -172,7 +211,7 @@ if (-not (Test-Path $emailFixture)) {
 $backendRunning = Ensure-PortReadyForProject -Port 8000 -CurrentProject "SMBFlow" -OtherProject "welfare-intelligence-platform" -ServiceName "Backend API"
 if (-not $backendRunning) {
     Write-Host "Starting Backend API in a new window..." -ForegroundColor Green
-    Start-Process powershell.exe -ArgumentList "-NoExit", "-Command", "& '.\venv\Scripts\python.exe' main.py api" -WorkingDirectory $PWD -WindowStyle Normal
+    Start-Process powershell.exe -ArgumentList "-NoExit", "-Command", "& '$pythonExe' main.py api" -WorkingDirectory $PWD -WindowStyle Normal
 }
 
 # =============================================================================
@@ -212,22 +251,24 @@ for ($i = 1; $i -le $maxAttempts; $i++) {
 Write-Host ""
 if ($backendHealthy) {
     Write-Host "==========================================" -ForegroundColor Cyan
-    Write-Host "SMBFlow is running!" -ForegroundColor Green
-    Write-Host "Frontend Dashboard:   http://localhost:5173"
-    Write-Host "API Base URL:         http://127.0.0.1:8000"
-    Write-Host "API Testing (Docs):   http://127.0.0.1:8000/docs"
-    Write-Host "API Health Check:     http://127.0.0.1:8000/api/v1/health"
-    Write-Host "API ReDoc View:       http://127.0.0.1:8000/redoc"
+    Write-Host "  Isolate is running successfully!        " -ForegroundColor Green
+    Write-Host "==========================================" -ForegroundColor Cyan
+    Write-Host "Frontend Dashboard:   http://localhost:5173" -ForegroundColor White
+    Write-Host "API Base URL:         http://127.0.0.1:8000" -ForegroundColor White
+    Write-Host "API Testing (Docs):   http://127.0.0.1:8000/docs" -ForegroundColor White
+    Write-Host "API Health Check:     http://127.0.0.1:8000/api/v1/health" -ForegroundColor White
+    Write-Host ""
+    Write-Host "Default Login Credentials:" -ForegroundColor Cyan
+    Write-Host "  Platform Admin:  admin@isolate.com / admin123" -ForegroundColor Green
+    Write-Host "  Legacy Admin:    admin@smbflow.com / admin123" -ForegroundColor Green
     Write-Host "==========================================" -ForegroundColor Cyan
 } else {
     Write-Host "==========================================" -ForegroundColor Red
-    Write-Host "SMBFlow backend did NOT become healthy." -ForegroundColor Red
+    Write-Host "Isolate backend did NOT become healthy." -ForegroundColor Red
     Write-Host "The API at $healthUrl did not respond with status 'ok' after $($maxAttempts * 2)s." -ForegroundColor Red
     Write-Host ""
-    Write-Host "ACTION: Check the separate 'python main.py api' backend window for the real" -ForegroundColor Yellow
-    Write-Host "        error (stack trace, port 8000 conflict, or database connection failure)." -ForegroundColor Yellow
-    Write-Host "        The frontend may still be starting on http://localhost:5173, but the app" -ForegroundColor Yellow
-    Write-Host "        will not work until the backend is healthy." -ForegroundColor Yellow
+    Write-Host "ACTION: Check the separate backend window for error messages" -ForegroundColor Yellow
+    Write-Host "        (port 8000 conflict, missing dependencies, or database configuration)." -ForegroundColor Yellow
     Write-Host "==========================================" -ForegroundColor Red
     exit 1
 }

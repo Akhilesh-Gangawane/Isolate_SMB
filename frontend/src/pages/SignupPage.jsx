@@ -12,6 +12,7 @@ import { Eye, EyeOff, AlertCircle, Loader2, ChevronDown } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { createApiClient } from '../api/client'
 import { createAuthService } from '../api/services/auth.service'
+import { IsolateLogo } from '../components/ui'
 
 const INDUSTRY_OPTIONS = [
   { label: 'SaaS / Technology', value: 'saas' },
@@ -272,11 +273,8 @@ export default function SignupPage() {
     <div className="min-h-screen bg-[#fafafa] flex flex-col items-center justify-center p-4 font-sans text-slate-800 antialiased selection:bg-blue-100 selection:text-blue-900">
       
       {/* ── Brand Indicator ──────────────────────────────────────────────── */}
-      <div className="mb-6 flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold text-sm shadow-sm">
-          S
-        </div>
-        <span className="text-lg font-bold text-slate-900 tracking-tight">SMBFlow</span>
+      <div className="mb-6 flex items-center justify-center">
+        <IsolateLogo size="md" isDark={false} />
       </div>
 
       <div className="w-full max-w-md">

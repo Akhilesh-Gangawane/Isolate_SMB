@@ -4,9 +4,15 @@
 // Autonomous Multi-Agent Workflow & Orchestration Engine
 // Real workflows, interactive live SVG canvas, zero fake icons.
 // ─────────────────────────────────────────────────────────────────────────────
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { useTheme } from '../contexts/ThemeContext'
+import Ballpit from '../components/ui/Ballpit'
+import MetallicPaint from '../components/ui/MetallicPaint'
+import IsolateLogo from '../components/ui/IsolateLogo'
+import HeroLogo from '../components/ui/HeroLogo'
+import GlassSurface from '../components/ui/GlassSurface'
 import {
   ArrowRight,
   Play,
@@ -211,9 +217,9 @@ const LANDING_WORKFLOWS = [
     category: 'Marketing Operations',
     description: 'Coordinates multi-channel launch preparation: generates tailored LinkedIn and Twitter copy, triggers ImageRouter banner graphics, and queues social feeds.',
     nodes: [
-      { id: '1', title: 'Campaign Intake', subtitle: 'Brief Hook', tool: 'webhook', type: 'Trigger', x: 20, y: 80, config: { type: 'marketing_brief' }, sampleInput: { launchName: 'SMBFlow 3.0' }, sampleOutput: { targetAudience: 'B2B SaaS Founders' } },
+      { id: '1', title: 'Campaign Intake', subtitle: 'Brief Hook', tool: 'webhook', type: 'Trigger', x: 20, y: 80, config: { type: 'marketing_brief' }, sampleInput: { launchName: 'Isolate 3.0' }, sampleOutput: { targetAudience: 'B2B SaaS Founders' } },
       { id: '2', title: 'Multi-Channel Copy', subtitle: 'Claude Sonnet', tool: 'claude', type: 'LLM Agent', x: 200, y: 80, config: { channels: ['linkedin', 'twitter', 'newsletter'] }, sampleInput: { brief: 'Autonomous workflow engine' }, sampleOutput: { postsReady: 3 } },
-      { id: '3', title: 'Banner Generation', subtitle: 'ImageRouter DALL-E', tool: 'openai', type: 'Visual AI', x: 380, y: 80, config: { ratio: '16:9' }, sampleInput: { prompt: 'Clean tech workflow interface' }, sampleOutput: { assetUrl: 'https://cdn.smbflow.io/banner.png' } },
+      { id: '3', title: 'Banner Generation', subtitle: 'ImageRouter DALL-E', tool: 'openai', type: 'Visual AI', x: 380, y: 80, config: { ratio: '16:9' }, sampleInput: { prompt: 'Clean tech workflow interface' }, sampleOutput: { assetUrl: 'https://cdn.isolate.io/banner.png' } },
       { id: '4', title: 'Social Queue Sync', subtitle: 'Google Sheets', tool: 'sheet', type: 'Destination Sync', x: 560, y: 80, config: { queueName: 'Launch_Q4' }, sampleInput: { items: 3 }, sampleOutput: { scheduled: true } },
     ],
     edges: [
@@ -224,22 +230,116 @@ const LANDING_WORKFLOWS = [
   }
 ]
 
+function TypingTagline({ text, speed = 35, delay = 250, className = '' }) {
+  const [displayedText, setDisplayedText] = useState('')
+  const [isTyping, setIsTyping] = useState(true)
+
+  React.useEffect(() => {
+    let currentIndex = 0
+    const timeoutId = setTimeout(() => {
+      const intervalId = setInterval(() => {
+        if (currentIndex < text.length) {
+          setDisplayedText(text.slice(0, currentIndex + 1))
+          currentIndex++
+        } else {
+          clearInterval(intervalId)
+          setIsTyping(false)
+        }
+      }, speed)
+      return () => clearInterval(intervalId)
+    }, delay)
+
+    return () => clearTimeout(timeoutId)
+  }, [text, speed, delay])
+
+  return (
+    <div className={className}>
+      <span className="font-caveat font-normal">
+        {displayedText}
+      </span>
+      {isTyping && (
+        <span className="inline-block w-1.5 h-6 ml-1 bg-purple-500 animate-pulse align-middle" />
+      )}
+    </div>
+  )
+}
+
+const DARK_BALL_COLORS = ['#a349e9', '#202020']
+const LIGHT_BALL_COLORS = ['#a349e9', '#475569']
+
 export default function LandingPage() {
   const navigate = useNavigate()
   const { theme, toggle: toggleTheme, isDark } = useTheme()
 
-  // Mouse spotlight coordinates
-  const [mousePos, setMousePos] = useState({ x: -1000, y: -1000 })
-  const heroRef = useRef(null)
+  // Full-page mouse hover spotlight glow (GPU translate3d = 0 repaint, 0 layout cost)
+  const spotlightRef = useRef(null)
 
-  const handleMouseMove = (e) => {
-    if (!heroRef.current) return
-    const rect = heroRef.current.getBoundingClientRect()
-    setMousePos({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
-    })
-  }
+  useEffect(() => {
+    let rafId = null
+    const handleWindowMouseMove = (e) => {
+      if (rafId) return
+      rafId = requestAnimationFrame(() => {
+        rafId = null
+        if (!spotlightRef.current) return
+        spotlightRef.current.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0)`
+      })
+    }
+
+    window.addEventListener('mousemove', handleWindowMouseMove, { passive: true })
+    return () => {
+      window.removeEventListener('mousemove', handleWindowMouseMove)
+      if (rafId) cancelAnimationFrame(rafId)
+    }
+  }, [])
+
+  const NAV_ITEMS = [
+    { id: 'workflows', label: 'Workflows' },
+    { id: 'architecture', label: 'Architecture' },
+    { id: 'integrations', label: 'Integrations' },
+    { id: 'pricing', label: 'Pricing' },
+    { id: 'faq', label: 'Docs & FAQ' }
+  ]
+
+  // Banner contraction & logo visibility when scrolling down from hero section
+  const [scrolledPastHero, setScrolledPastHero] = useState(false)
+  const [activeNavSection, setActiveNavSection] = useState('')
+
+  useEffect(() => {
+    let ticking = false
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          ticking = false
+          const scrollY = window.scrollY
+          const pastHero = scrollY > 160
+
+          setScrolledPastHero((prev) => (prev !== pastHero ? pastHero : prev))
+
+          if (scrollY < 240) {
+            setActiveNavSection((prev) => (prev !== '' ? '' : prev))
+            return
+          }
+
+          let currentSection = ''
+          for (let i = 0; i < NAV_ITEMS.length; i++) {
+            const el = document.getElementById(NAV_ITEMS[i].id)
+            if (el && scrollY + 180 >= el.offsetTop) {
+              currentSection = NAV_ITEMS[i].id
+            }
+          }
+
+          if (currentSection) {
+            setActiveNavSection((prev) => (prev !== currentSection ? currentSection : prev))
+          }
+        })
+        ticking = true
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    handleScroll()
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
   // Interactive Canvas State
   const [activeWorkflowId, setActiveWorkflowId] = useState('invoices')
@@ -257,13 +357,36 @@ export default function LandingPage() {
   const [billingCycle, setBillingCycle] = useState('monthly')
   const [openFaqIndex, setOpenFaqIndex] = useState(null)
   const [ctaEmail, setCtaEmail] = useState('')
+  const [isNavigating, setIsNavigating] = useState(false)
+
+  const smoothNavigate = (to, state = null) => {
+    setIsNavigating(true)
+    setTimeout(() => {
+      navigate(to, state ? { state } : undefined)
+    }, 280)
+  }
+
+  const handleScrollTo = (e, id) => {
+    if (e && e.preventDefault) e.preventDefault()
+    setActiveNavSection(id)
+    const target = document.getElementById(id)
+    if (target) {
+      const headerOffset = 80
+      const elementPosition = target.getBoundingClientRect().top
+      const offsetPosition = elementPosition + window.pageYOffset - headerOffset
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+      })
+    }
+  }
 
   const handleCtaSubmit = (e) => {
     e.preventDefault()
     if (ctaEmail.trim()) {
-      navigate('/auth/signup', { state: { email: ctaEmail.trim() } })
+      smoothNavigate('/auth/signup', { email: ctaEmail.trim() })
     } else {
-      navigate('/auth/signup')
+      smoothNavigate('/auth/signup')
     }
   }
 
@@ -281,8 +404,8 @@ export default function LandingPage() {
 
   const faqs = [
     {
-      q: "How does SMBFlow execute multi-agent workflows?",
-      a: "SMBFlow uses Directed Acyclic Graphs (DAGs) powered by an asynchronous state engine. Each node represents a discrete task (LLM reasoning, deterministic rule routing, human sign-off, or external API execution) executed in verified sequence with full PostgreSQL audit persistence."
+      q: "How does Isolate execute multi-agent workflows?",
+      a: "Isolate uses Directed Acyclic Graphs (DAGs) powered by an asynchronous state engine. Each node represents a discrete task (LLM reasoning, deterministic rule routing, human sign-off, or external API execution) executed in verified sequence with full PostgreSQL audit persistence."
     },
     {
       q: "What is Human-in-the-Loop (HITL) Safe Mode?",
@@ -290,11 +413,11 @@ export default function LandingPage() {
     },
     {
       q: "Which AI models and providers are supported?",
-      a: "SMBFlow supports Anthropic (Claude 3.7 / 3.5 Sonnet), OpenAI (GPT-4o / GPT-4o mini), Google Gemini, and open-source models via Groq (Llama 3.3). You can supply your own API keys via the encrypted Key Vault."
+      a: "Isolate supports Anthropic (Claude 3.7 / 3.5 Sonnet), OpenAI (GPT-4o / GPT-4o mini), Google Gemini, and open-source models via Groq (Llama 3.3). You can supply your own API keys via the encrypted Key Vault."
     },
     {
       q: "Is data isolated between client organizations?",
-      a: "Yes. SMBFlow enforces complete multi-tenant database isolation at the schema and query layer. Credentials, workflow execution history, and client data are cryptographically partitioned."
+      a: "Yes. Isolate enforces complete multi-tenant database isolation at the schema and query layer. Credentials, workflow execution history, and client data are cryptographically partitioned."
     },
     {
       q: "Can I schedule workflows or trigger them via webhooks?",
@@ -303,144 +426,196 @@ export default function LandingPage() {
   ]
 
   return (
-    <div className={`min-h-screen transition-colors duration-200 ${
-      isDark
-        ? 'bg-[#0b0f17] text-slate-100 selection:bg-blue-600 selection:text-white'
-        : 'bg-slate-50 text-slate-900 selection:bg-blue-600 selection:text-white font-sans'
-    }`}>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: isNavigating ? 0 : 1, y: isNavigating ? -8 : 0 }}
+      transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+      className={`min-h-screen transition-colors duration-200 relative ${isDark
+          ? 'bg-[#0b0f17] text-slate-100 selection:bg-blue-600 selection:text-white'
+          : 'bg-white text-slate-900 selection:bg-blue-600 selection:text-white font-sans'
+        }`}>
 
-      {/* ── Top Header Navigation ───────────────────────────────────────────── */}
-      <header className={`sticky top-0 z-50 w-full backdrop-blur-md border-b transition-colors ${
-        isDark
-          ? 'bg-[#0b0f17]/90 border-[#233048] text-white'
-          : 'bg-white/90 border-slate-200 text-slate-900'
-      }`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-xs">
-              <BrainCircuit className="w-4 h-4" />
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={`font-bold text-base tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                SMBFlow
-              </span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold uppercase tracking-wider ${
-                isDark ? 'bg-[#182234] text-slate-300 border border-[#233048]' : 'bg-slate-100 text-slate-600 border border-slate-200'
-              }`}>
-                v3.0
-              </span>
-            </div>
-          </Link>
+      {/* ── Global Full-Page Background: Dot Grid & Slight Blue Hover Glow ── */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        {/* Dot grid pattern across the whole page */}
+        <div className="absolute inset-0 bg-dot-pattern" />
 
-          {/* Desktop Nav Links */}
-          <nav className={`hidden md:flex items-center gap-7 text-sm font-medium ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-            <a href="#workflows" className={`transition-colors ${isDark ? 'hover:text-white' : 'hover:text-slate-900'}`}>Workflows</a>
-            <a href="#architecture" className={`transition-colors ${isDark ? 'hover:text-white' : 'hover:text-slate-900'}`}>Architecture</a>
-            <a href="#integrations" className={`transition-colors ${isDark ? 'hover:text-white' : 'hover:text-slate-900'}`}>Integrations</a>
-            <a href="#pricing" className={`transition-colors ${isDark ? 'hover:text-white' : 'hover:text-slate-900'}`}>Pricing</a>
-            <a href="#faq" className={`transition-colors ${isDark ? 'hover:text-white' : 'hover:text-slate-900'}`}>Docs & FAQ</a>
-          </nav>
+        {/* Full-page slight blue hover spotlight (hardware accelerated via translate3d, 0 repaint) */}
+        <div
+          ref={spotlightRef}
+          className="absolute -top-[325px] -left-[325px] w-[650px] h-[650px] rounded-full pointer-events-none will-change-transform"
+          style={{
+            transform: 'translate3d(-1000px, -1000px, 0)',
+            background: isDark
+              ? 'radial-gradient(circle, rgba(37, 99, 235, 0.16) 0%, rgba(59, 130, 246, 0.05) 45%, transparent 70%)'
+              : 'radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, rgba(99, 102, 241, 0.05) 45%, transparent 70%)'
+          }}
+        />
+      </div>
 
-          {/* Nav Actions + Theme Toggle */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={toggleTheme}
-              className={`p-2 rounded-xl border transition-all cursor-pointer ${
-                isDark
-                  ? 'bg-[#121826] border-[#233048] text-amber-300 hover:bg-[#182234]'
-                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100 shadow-2xs'
+      {/* ── Top Header Navigation with GlassSurface & Smooth Contraction ───── */}
+      <header
+        className={`sticky top-0 z-50 w-full flex justify-center pointer-events-none transition-all duration-500 ease-out ${
+          scrolledPastHero ? 'pt-3 sm:pt-4 px-3 sm:px-6' : 'pt-0 px-0'
+        }`}
+      >
+        <div
+          className={`w-full transition-all duration-500 ease-out pointer-events-auto ${
+            scrolledPastHero ? 'max-w-5xl' : 'max-w-full'
+          }`}
+        >
+          <GlassSurface
+            width="100%"
+            height={scrolledPastHero ? 60 : 64}
+            borderRadius={scrolledPastHero ? 24 : 0}
+            borderWidth={0.07}
+            brightness={isDark ? 44 : 52}
+            opacity={0.93}
+            blur={11}
+            displace={6}
+            distortionScale={-130}
+            redOffset={4}
+            greenOffset={12}
+            blueOffset={22}
+            backgroundOpacity={isDark ? 0.35 : 0.6}
+            saturation={1.4}
+            mixBlendMode="screen"
+            className={`w-full transition-all duration-500 ease-out ${
+              scrolledPastHero
+                ? isDark
+                  ? 'border border-[#233048]/90 shadow-2xl shadow-black/50'
+                  : 'border border-slate-200/90 shadow-xl shadow-slate-900/5'
+                : isDark
+                  ? 'border-b border-[#233048] border-t-0 border-x-0'
+                  : 'border-b border-slate-200 border-t-0 border-x-0'
+            }`}
+          >
+            <div
+              className={`w-full h-full flex items-center justify-between transition-all duration-500 ease-out ${
+                scrolledPastHero
+                  ? 'px-3 sm:px-5'
+                  : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'
               }`}
-              title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
             >
-              {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
+              {/* Logo: appears smoothly only when scrolled down from hero section */}
+              <Link
+                to="/"
+                className={`flex items-center gap-2 group transition-all duration-300 ease-out ${
+                  scrolledPastHero
+                    ? 'opacity-100 translate-x-0 pointer-events-auto'
+                    : 'opacity-0 -translate-x-3 pointer-events-none'
+                }`}
+                tabIndex={scrolledPastHero ? 0 : -1}
+                aria-label="Isolate Home"
+              >
+                <IsolateLogo size="md" isDark={isDark} />
+              </Link>
 
-            <Link
-              to="/auth"
-              className={`text-sm font-medium px-3 py-2 transition-colors ${
-                isDark ? 'text-slate-300 hover:text-white' : 'text-slate-700 hover:text-slate-900'
-              }`}
-            >
-              Sign in
-            </Link>
-            <Link
-              to="/auth/signup"
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 shadow-xs transition-all duration-150"
-            >
-              <span>Get Started</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
+              {/* Desktop Nav Links */}
+              <nav className="hidden md:flex items-center gap-1 sm:gap-1.5">
+                {NAV_ITEMS.map((item) => {
+                  const isSelected = activeNavSection === item.id
+                  return (
+                    <a
+                      key={item.id}
+                      href={`#${item.id}`}
+                      onClick={(e) => handleScrollTo(e, item.id)}
+                      style={isSelected ? { color: isDark ? '#ffffff' : '#000000' } : undefined}
+                      className={`px-3 py-1.5 rounded-full text-xs transition-all duration-200 cursor-pointer ${
+                        isSelected
+                          ? isDark
+                            ? 'text-white font-semibold bg-white/12 shadow-2xs'
+                            : 'text-black font-semibold bg-black/6 shadow-2xs'
+                          : isDark
+                            ? 'text-slate-400 font-medium hover:text-white hover:bg-white/5'
+                            : 'text-slate-500 font-medium hover:text-black hover:bg-black/4'
+                      }`}
+                    >
+                      {item.label}
+                    </a>
+                  )
+                })}
+              </nav>
+
+              {/* Nav Actions + Theme Toggle */}
+              <div className="flex items-center gap-2 sm:gap-3">
+                <button
+                  onClick={toggleTheme}
+                  className={`p-2 rounded-xl border transition-all cursor-pointer ${
+                    isDark
+                      ? 'bg-[#121826]/80 border-[#233048] text-amber-300 hover:bg-[#182234]'
+                      : 'bg-white/80 border-slate-200 text-slate-700 hover:bg-slate-100 shadow-2xs'
+                  }`}
+                  title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                >
+                  {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                </button>
+
+                <button
+                  onClick={() => smoothNavigate('/auth')}
+                  className={`text-xs sm:text-sm font-medium px-2.5 sm:px-3 py-1.5 transition-colors cursor-pointer ${
+                    isDark ? 'text-slate-300 hover:text-white' : 'text-slate-700 hover:text-black'
+                  }`}
+                >
+                  Sign in
+                </button>
+                <button
+                  onClick={() => smoothNavigate('/auth/signup')}
+                  className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 shadow-xs transition-all duration-150 cursor-pointer"
+                >
+                  <span>Get Started</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          </GlassSurface>
         </div>
       </header>
 
-      <main className="w-full">
+      <main className="w-full relative z-10">
         {/* ── Hero Section ─────────────────────────────────────────────────── */}
         <section
-          ref={heroRef}
-          onMouseMove={handleMouseMove}
-          className={`relative pt-20 pb-20 md:pt-28 md:pb-28 overflow-hidden transition-colors border-b ${
-            isDark
-              ? 'bg-[#0b0f17] border-[#233048] bg-dot-pattern'
-              : 'bg-white border-slate-200 bg-dot-pattern'
-          }`}
+          className={`relative pt-20 pb-20 md:pt-28 md:pb-28 overflow-hidden transition-colors border-b ${isDark ? 'border-[#233048]' : 'border-slate-200'
+            }`}
         >
-          {/* Subtle Spotlight */}
-          <div
-            className="absolute inset-0 pointer-events-none transition-all duration-100 ease-out"
-            style={{
-              background: isDark
-                ? `radial-gradient(550px circle at ${mousePos.x}px ${mousePos.y}px, rgba(37, 99, 235, 0.12) 0%, transparent 65%)`
-                : `radial-gradient(500px circle at ${mousePos.x}px ${mousePos.y}px, rgba(37, 99, 235, 0.08) 0%, transparent 60%)`
-            }}
-          />
+          <div className="absolute inset-0 z-0 overflow-hidden pointer-events-auto">
+            <Ballpit
+              count={100}
+              gravity={0.01}
+              friction={0.9975}
+              wallBounce={0.95}
+              followCursor={false}
+              colors={isDark ? DARK_BALL_COLORS : LIGHT_BALL_COLORS}
+              ambientColor={isDark ? 0x222634 : 0xffffff}
+            />
+          </div>
 
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center text-center relative z-10">
-            {/* Tag Badge */}
-            <div className={`inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-semibold mb-8 border shadow-2xs ${
-              isDark
-                ? 'bg-[#121826] border-[#233048] text-blue-400'
-                : 'bg-slate-50 border-slate-200 text-blue-700'
-            }`}>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>Autonomous Multi-Agent Workflow Engine</span>
-            </div>
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center text-center relative z-20 pointer-events-none">
+            {/* Main Hero Logo with crisp vector base and mild metallic hover effect */}
+            <HeroLogo isDark={isDark} />
 
-            {/* Headline */}
-            <h1 className={`text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight max-w-3xl leading-[1.15] ${
-              isDark ? 'text-white' : 'text-slate-950'
-            }`}>
-              Autonomous workflows with{' '}
-              <span className="text-blue-600 dark:text-blue-400">
-                human-in-the-loop
-              </span>{' '}
-              precision.
-            </h1>
-
-            {/* Subtitle */}
-            <p className={`mt-6 text-base sm:text-lg max-w-2xl font-normal leading-relaxed ${
-              isDark ? 'text-slate-400' : 'text-slate-600'
-            }`}>
-              SMBFlow coordinates intelligent multi-agent pipelines for invoice processing, inbound email triage, CRM lead enrichment, and campaign execution with verifiable state execution.
-            </p>
+            {/* Tagline directly beneath the logo in typing style with Caveat font */}
+            <TypingTagline
+              text="Autonomous business operations for SMBs & mid-market businesses"
+              className="mt-1 sm:mt-2 text-xl sm:text-2xl md:text-3xl text-slate-700 dark:text-slate-300 font-caveat tracking-wide max-w-3xl mx-auto"
+            />
 
             {/* Actions */}
             <div className="mt-8 flex flex-col sm:flex-row items-center gap-3.5 w-full sm:w-auto">
-              <Link
-                to="/auth/signup"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-500 shadow-xs transition-all"
+              <button
+                onClick={() => smoothNavigate('/auth/signup')}
+                className="pointer-events-auto w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white bg-blue-600 hover:bg-blue-500 shadow-xs transition-all cursor-pointer"
               >
                 <span>Create Free Workspace</span>
                 <ArrowRight className="w-4 h-4" />
-              </Link>
+              </button>
               <a
                 href="#workflows"
-                className={`w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-semibold text-sm border transition-all ${
-                  isDark
+                onClick={(e) => handleScrollTo(e, 'workflows')}
+                className={`pointer-events-auto w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-semibold text-sm border transition-all ${isDark
                     ? 'bg-[#121826] text-slate-200 border-[#233048] hover:bg-[#182234]'
                     : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 shadow-2xs'
-                }`}
+                  }`}
               >
                 <Workflow className="w-4 h-4 text-blue-500" />
                 <span>Explore Interactive Pipelines</span>
@@ -448,9 +623,8 @@ export default function LandingPage() {
             </div>
 
             {/* Verification Strip */}
-            <div className={`mt-12 flex flex-wrap items-center justify-center gap-6 text-xs font-medium ${
-              isDark ? 'text-slate-400' : 'text-slate-500'
-            }`}>
+            <div className={`mt-12 flex flex-wrap items-center justify-center gap-6 text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'
+              }`}>
               <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-emerald-500" /> Deterministic DAG Execution</span>
               <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-emerald-500" /> Human Approval Gates</span>
               <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-emerald-500" /> Multi-Tenant Isolation</span>
@@ -477,13 +651,12 @@ export default function LandingPage() {
                 <button
                   key={wf.id}
                   onClick={() => handleSelectWorkflow(wf.id)}
-                  className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 border transition-all cursor-pointer ${
-                    isSelected
+                  className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 border transition-all cursor-pointer ${isSelected
                       ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
                       : isDark
                         ? 'bg-[#121826] border-[#233048] text-slate-300 hover:bg-[#182234]'
                         : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-2xs'
-                  }`}
+                    }`}
                 >
                   <ToolLogo name={wf.nodes[0]?.tool} className="w-3.5 h-3.5" />
                   <span>{wf.name}</span>
@@ -493,21 +666,18 @@ export default function LandingPage() {
           </div>
 
           {/* Interactive Canvas Graph Card */}
-          <div className={`rounded-2xl border shadow-md overflow-hidden transition-colors ${
-            isDark ? 'bg-[#121826] border-[#233048]' : 'bg-white border-slate-200'
-          }`}>
-            {/* Canvas Header */}
-            <div className={`px-6 py-4 border-b flex flex-wrap items-center justify-between gap-4 ${
-              isDark ? 'bg-[#0b0f17]/80 border-[#233048]' : 'bg-slate-50/70 border-slate-200'
+          <div className={`rounded-2xl border shadow-md overflow-hidden transition-colors ${isDark ? 'bg-[#121826] border-[#233048]' : 'bg-white border-slate-200'
             }`}>
+            {/* Canvas Header */}
+            <div className={`px-6 py-4 border-b flex flex-wrap items-center justify-between gap-4 ${isDark ? 'bg-[#0b0f17]/80 border-[#233048]' : 'bg-slate-50/70 border-slate-200'
+              }`}>
               <div>
                 <div className="flex items-center gap-2">
                   <span className={`font-bold text-sm ${isDark ? 'text-white' : 'text-slate-900'}`}>
                     {currentWorkflow.name}
                   </span>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-semibold border ${
-                    isDark ? 'bg-[#182234] text-blue-300 border-[#233048]' : 'bg-blue-50 text-blue-700 border-blue-200'
-                  }`}>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-semibold border ${isDark ? 'bg-[#182234] text-blue-300 border-[#233048]' : 'bg-blue-50 text-blue-700 border-blue-200'
+                    }`}>
                     {currentWorkflow.category}
                   </span>
                 </div>
@@ -601,20 +771,18 @@ export default function LandingPage() {
 
               {/* Node Payload Inspector Drawer */}
               {selectedNode && (
-                <div className={`mt-4 p-4 rounded-xl border text-xs transition-colors ${
-                  isDark ? 'bg-[#0f141f] border-[#233048]' : 'bg-white border-slate-200 shadow-2xs'
-                }`}>
+                <div className={`mt-4 p-4 rounded-xl border text-xs transition-colors ${isDark ? 'bg-[#0f141f] border-[#233048]' : 'bg-white border-slate-200 shadow-2xs'
+                  }`}>
                   <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-[#1a2336] mb-3">
                     <div className="flex items-center gap-2">
                       <ToolLogo name={selectedNode.tool} className="w-4 h-4" />
                       <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                         {selectedNode.title}
                       </span>
-                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
-                        selectedNode.type === 'HITL Review'
+                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded border ${selectedNode.type === 'HITL Review'
                           ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800'
                           : 'bg-slate-100 dark:bg-[#182234] text-slate-600 dark:text-slate-300 border-slate-200 dark:border-[#233048]'
-                      }`}>
+                        }`}>
                         {selectedNode.type}
                       </span>
                     </div>
@@ -649,9 +817,8 @@ export default function LandingPage() {
         </section>
 
         {/* ── Core Architectural Pillars ───────────────────────────────────── */}
-        <section className={`py-20 border-t transition-colors ${
-          isDark ? 'bg-[#080b11] border-[#233048]' : 'bg-slate-50/80 border-slate-200'
-        }`} id="architecture">
+        <section className={`py-20 border-t transition-colors ${isDark ? 'border-[#233048]' : 'border-slate-200'
+          }`} id="architecture">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center max-w-2xl mx-auto mb-14">
               <h2 className={`text-2xl sm:text-3xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-950'}`}>
@@ -664,9 +831,8 @@ export default function LandingPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Card 1 */}
-              <div className={`p-6 rounded-2xl border transition-all shadow-2xs ${
-                isDark ? 'bg-[#121826] border-[#233048]' : 'bg-white border-slate-200'
-              }`}>
+              <div className={`p-6 rounded-2xl border transition-all shadow-2xs ${isDark ? 'bg-[#121826] border-[#233048]' : 'bg-white border-slate-200'
+                }`}>
                 <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 flex items-center justify-center mb-4">
                   <Cpu className="w-5 h-5" />
                 </div>
@@ -679,9 +845,8 @@ export default function LandingPage() {
               </div>
 
               {/* Card 2 */}
-              <div className={`p-6 rounded-2xl border transition-all shadow-2xs ${
-                isDark ? 'bg-[#121826] border-[#233048]' : 'bg-white border-slate-200'
-              }`}>
+              <div className={`p-6 rounded-2xl border transition-all shadow-2xs ${isDark ? 'bg-[#121826] border-[#233048]' : 'bg-white border-slate-200'
+                }`}>
                 <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800 flex items-center justify-center mb-4">
                   <UserCheck className="w-5 h-5" />
                 </div>
@@ -694,9 +859,8 @@ export default function LandingPage() {
               </div>
 
               {/* Card 3 */}
-              <div className={`p-6 rounded-2xl border transition-all shadow-2xs ${
-                isDark ? 'bg-[#121826] border-[#233048]' : 'bg-white border-slate-200'
-              }`}>
+              <div className={`p-6 rounded-2xl border transition-all shadow-2xs ${isDark ? 'bg-[#121826] border-[#233048]' : 'bg-white border-slate-200'
+                }`}>
                 <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center mb-4">
                   <KeyRound className="w-5 h-5" />
                 </div>
@@ -712,9 +876,8 @@ export default function LandingPage() {
         </section>
 
         {/* ── Integrations Section (Real Tool Logos) ───────────────────────── */}
-        <section className={`py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-b ${
-          isDark ? 'border-[#233048]' : 'border-slate-200'
-        }`} id="integrations">
+        <section className={`py-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-b ${isDark ? 'border-[#233048]' : 'border-slate-200'
+          }`} id="integrations">
           <div className="text-center max-w-2xl mx-auto mb-10">
             <h2 className={`text-xl sm:text-2xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
               Connects with Your Operational Stack
@@ -728,11 +891,10 @@ export default function LandingPage() {
             {INTEGRATION_TOOLS.map((tool) => (
               <div
                 key={tool.id}
-                className={`px-4 py-2.5 rounded-xl border text-xs font-semibold flex items-center gap-2.5 transition-all shadow-2xs ${
-                  isDark
+                className={`px-4 py-2.5 rounded-xl border text-xs font-semibold flex items-center gap-2.5 transition-all shadow-2xs ${isDark
                     ? 'bg-[#121826] border-[#233048] text-slate-200 hover:border-slate-600'
                     : 'bg-white border-slate-200 text-slate-800 hover:border-slate-300'
-                }`}
+                  }`}
               >
                 <div className="w-5 h-5 rounded flex items-center justify-center shrink-0">
                   <ToolLogo name={tool.id} className="w-4 h-4" />
@@ -753,26 +915,23 @@ export default function LandingPage() {
               Get started for free or scale your workflow capacity as operations expand.
             </p>
 
-            <div className={`mt-6 inline-flex items-center gap-2 p-1 rounded-xl border ${
-              isDark ? 'bg-[#121826] border-[#233048]' : 'bg-slate-100 border-slate-200'
-            }`}>
+            <div className={`mt-6 inline-flex items-center gap-2 p-1 rounded-xl border ${isDark ? 'bg-[#121826] border-[#233048]' : 'bg-slate-100 border-slate-200'
+              }`}>
               <button
                 onClick={() => setBillingCycle('monthly')}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  billingCycle === 'monthly'
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${billingCycle === 'monthly'
                     ? isDark ? 'bg-[#182234] text-white shadow-xs' : 'bg-white text-slate-900 shadow-xs'
                     : isDark ? 'text-slate-400' : 'text-slate-600'
-                }`}
+                  }`}
               >
                 Monthly
               </button>
               <button
                 onClick={() => setBillingCycle('annual')}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  billingCycle === 'annual'
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${billingCycle === 'annual'
                     ? isDark ? 'bg-[#182234] text-white shadow-xs' : 'bg-white text-slate-900 shadow-xs'
                     : isDark ? 'text-slate-400' : 'text-slate-600'
-                }`}
+                  }`}
               >
                 Annual (20% off)
               </button>
@@ -781,9 +940,8 @@ export default function LandingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {/* Free */}
-            <div className={`p-6 rounded-2xl border flex flex-col justify-between shadow-2xs ${
-              isDark ? 'bg-[#121826] border-[#233048]' : 'bg-white border-slate-200'
-            }`}>
+            <div className={`p-6 rounded-2xl border flex flex-col justify-between shadow-2xs ${isDark ? 'bg-[#121826] border-[#233048]' : 'bg-white border-slate-200'
+              }`}>
               <div>
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400 font-mono">Free Tier</span>
                 <div className="mt-3 flex items-baseline gap-1">
@@ -803,9 +961,8 @@ export default function LandingPage() {
               <div className="mt-6 pt-4 border-t border-slate-100 dark:border-[#182234]">
                 <Link
                   to="/auth/signup"
-                  className={`w-full inline-flex items-center justify-center py-2 rounded-xl border text-xs font-semibold ${
-                    isDark ? 'border-[#233048] text-white hover:bg-[#182234]' : 'border-slate-300 text-slate-800 hover:bg-slate-50'
-                  }`}
+                  className={`w-full inline-flex items-center justify-center py-2 rounded-xl border text-xs font-semibold ${isDark ? 'border-[#233048] text-white hover:bg-[#182234]' : 'border-slate-300 text-slate-800 hover:bg-slate-50'
+                    }`}
                 >
                   Start Free
                 </Link>
@@ -813,9 +970,8 @@ export default function LandingPage() {
             </div>
 
             {/* Starter */}
-            <div className={`p-6 rounded-2xl border-2 flex flex-col justify-between relative shadow-md ${
-              isDark ? 'bg-[#121826] border-blue-500' : 'bg-white border-blue-600'
-            }`}>
+            <div className={`p-6 rounded-2xl border-2 flex flex-col justify-between relative shadow-md ${isDark ? 'bg-[#121826] border-blue-500' : 'bg-white border-blue-600'
+              }`}>
               <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider text-white bg-blue-600 font-mono">
                 Recommended
               </div>
@@ -851,9 +1007,8 @@ export default function LandingPage() {
             </div>
 
             {/* Enterprise */}
-            <div className={`p-6 rounded-2xl border flex flex-col justify-between shadow-2xs ${
-              isDark ? 'bg-[#121826] border-[#233048]' : 'bg-white border-slate-200'
-            }`}>
+            <div className={`p-6 rounded-2xl border flex flex-col justify-between shadow-2xs ${isDark ? 'bg-[#121826] border-[#233048]' : 'bg-white border-slate-200'
+              }`}>
               <div>
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400 font-mono">Enterprise</span>
                 <div className="mt-3 flex items-baseline gap-1">
@@ -872,9 +1027,8 @@ export default function LandingPage() {
               <div className="mt-6 pt-4 border-t border-slate-100 dark:border-[#182234]">
                 <a
                   href="#faq"
-                  className={`w-full inline-flex items-center justify-center py-2 rounded-xl border text-xs font-semibold ${
-                    isDark ? 'border-[#233048] text-white hover:bg-[#182234]' : 'border-slate-300 text-slate-800 hover:bg-slate-50'
-                  }`}
+                  className={`w-full inline-flex items-center justify-center py-2 rounded-xl border text-xs font-semibold ${isDark ? 'border-[#233048] text-white hover:bg-[#182234]' : 'border-slate-300 text-slate-800 hover:bg-slate-50'
+                    }`}
                 >
                   Contact Sales
                 </a>
@@ -884,9 +1038,8 @@ export default function LandingPage() {
         </section>
 
         {/* ── FAQ ──────────────────────────────────────────────────────────── */}
-        <section className={`py-20 border-t transition-colors ${
-          isDark ? 'bg-[#080b11] border-[#233048]' : 'bg-slate-50/80 border-slate-200'
-        }`} id="faq">
+        <section className={`py-20 border-t transition-colors ${isDark ? 'border-[#233048]' : 'border-slate-200'
+          }`} id="faq">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-10">
               <h2 className={`text-2xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-950'}`}>
@@ -898,24 +1051,20 @@ export default function LandingPage() {
               {faqs.map((faq, idx) => {
                 const isOpen = openFaqIndex === idx
                 return (
-                  <div key={idx} className={`rounded-xl border overflow-hidden transition-colors shadow-2xs ${
-                    isDark ? 'bg-[#121826] border-[#233048]' : 'bg-white border-slate-200'
-                  }`}>
+                  <div key={idx} className={`rounded-xl border overflow-hidden transition-colors shadow-2xs ${isDark ? 'bg-[#121826] border-[#233048]' : 'bg-white border-slate-200'
+                    }`}>
                     <button
                       onClick={() => setOpenFaqIndex(isOpen ? null : idx)}
-                      className={`w-full p-4 text-left flex items-center justify-between font-semibold text-sm cursor-pointer ${
-                        isDark ? 'text-white' : 'text-slate-900'
-                      }`}
+                      className={`w-full p-4 text-left flex items-center justify-between font-semibold text-sm cursor-pointer ${isDark ? 'text-white' : 'text-slate-900'
+                        }`}
                     >
                       <span>{faq.q}</span>
-                      <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${
-                        isOpen ? 'rotate-180' : ''
-                      } ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
+                      <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''
+                        } ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
                     </button>
                     {isOpen && (
-                      <div className={`px-4 pb-4 text-xs leading-relaxed border-t border-slate-100 dark:border-[#182234] pt-3 ${
-                        isDark ? 'text-slate-400' : 'text-slate-600'
-                      }`}>
+                      <div className={`px-4 pb-4 text-xs leading-relaxed border-t border-slate-100 dark:border-[#182234] pt-3 ${isDark ? 'text-slate-400' : 'text-slate-600'
+                        }`}>
                         {faq.a}
                       </div>
                     )}
@@ -928,11 +1077,10 @@ export default function LandingPage() {
 
         {/* ── Closing CTA ──────────────────────────────────────────────────── */}
         <section className="py-16 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className={`rounded-2xl p-8 sm:p-12 border shadow-lg ${
-            isDark
+          <div className={`rounded-2xl p-8 sm:p-12 border shadow-lg ${isDark
               ? 'bg-[#121826] border-[#233048] text-white'
               : 'bg-slate-950 border-slate-900 text-white'
-          }`}>
+            }`}>
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
               Automate your business operations with precision.
             </h2>
@@ -961,20 +1109,19 @@ export default function LandingPage() {
       </main>
 
       {/* ── Footer ───────────────────────────────────────────────────────── */}
-      <footer className={`border-t py-12 transition-colors ${
-        isDark ? 'bg-[#080b11] border-[#233048] text-slate-400' : 'bg-white border-slate-200 text-slate-500'
-      }`}>
+      <footer className={`border-t py-12 transition-colors ${isDark ? 'border-[#233048] text-slate-400' : 'border-slate-200 text-slate-500'
+        }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded bg-blue-600 flex items-center justify-center text-white">
+            <div className="w-5 h-5 rounded bg-purple-600 flex items-center justify-center text-white">
               <BrainCircuit className="w-3 h-3" />
             </div>
-            <span className="font-semibold text-slate-700 dark:text-slate-200">SMBFlow</span>
-            <span>— Autonomous Multi-Tenant Workflow Engine</span>
+            <span className="font-semibold text-slate-700 dark:text-slate-200">Isolate</span>
+            <span>— Autonomous Business Operations Platform</span>
           </div>
-          <p>© 2026 SMBFlow. All rights reserved.</p>
+          <p>© 2026 Isolate. All rights reserved.</p>
         </div>
       </footer>
-    </div>
+    </motion.div>
   )
 }

@@ -12,7 +12,7 @@ import AuthCallbackPage   from './pages/AuthCallbackPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import ResetPasswordPage  from './pages/ResetPasswordPage'
 import AccessDenied       from './components/shell/AccessDenied'
-import { Spinner }        from './components/ui'
+import { Spinner, IsolateLogo } from './components/ui'
 
 // ── Platform Admin pages ───────────────────────────────────────────────────────
 import AdminPlatformOverview    from './pages/admin/AdminPlatformOverview'
@@ -79,14 +79,11 @@ const queryClient = new QueryClient({
 
 function FullScreenLoader() {
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-      <div className="flex items-center gap-2.5 mb-4">
-        <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center">
-          <span className="text-white font-bold text-sm">S</span>
-        </div>
-        <span className="text-xl font-semibold text-slate-900">SMBFlow</span>
+    <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f17] flex flex-col items-center justify-center p-4">
+      <div className="mb-4">
+        <IsolateLogo size="md" isDark={false} />
       </div>
-      <div className="flex items-center gap-2 text-slate-500 text-sm">
+      <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 text-sm">
         <Spinner className="w-4 h-4 text-blue-600 animate-spin" />
         <span>Verifying authentication...</span>
       </div>

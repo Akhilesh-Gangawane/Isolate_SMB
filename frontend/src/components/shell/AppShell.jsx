@@ -11,7 +11,7 @@
 // This is the presentation frame only. Individual pages are migrated later
 // (Phase 3+); until then existing pages render inside this shell unchanged.
 // ─────────────────────────────────────────────────────────────────────────────
-import { useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useWebSocket } from '../../contexts/WSContext'
 import { useBadgeStore } from '../../utils/appStore'
@@ -21,6 +21,24 @@ import { TopHeader } from './TopHeader'
 export function AppShell({ children }) {
   const { user, isAdmin, api } = useAuth()
   const { subscribe } = useWebSocket()
+
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('isolate_sidebar_collapsed') === 'true'
+    } catch {
+      return false
+    }
+  })
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarCollapsed(prev => {
+      const next = !prev
+      try {
+        localStorage.setItem('isolate_sidebar_collapsed', String(next))
+      } catch (_) {}
+      return next
+    })
+  }, [])
 
   const {
     escalations, a2a, emails, patterns,
@@ -70,9 +88,17 @@ export function AppShell({ children }) {
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-[#0b0f17] text-slate-900 dark:text-slate-100 overflow-hidden transition-colors">
-      <Sidebar isAdmin={isAdmin} getBadge={getBadge} />
+      <Sidebar
+        isAdmin={isAdmin}
+        getBadge={getBadge}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={toggleSidebar}
+      />
       <div className="flex flex-col flex-1 min-w-0">
-        <TopHeader />
+        <TopHeader
+          sidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={toggleSidebar}
+        />
         <main className="flex-1 overflow-y-auto bg-slate-50 dark:bg-[#0b0f17] bg-dot-pattern transition-colors">{children}</main>
       </div>
     </div>

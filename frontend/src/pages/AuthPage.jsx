@@ -1,11 +1,11 @@
 // frontend/src/pages/AuthPage.jsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Zap, Mail, Lock, User, Building2, Layers, ArrowRight, Sparkles } from 'lucide-react'
 import { useAuth }   from '../contexts/AuthContext'
 import { apiCall }   from '../api/client'
-import { Alert, Spinner, Button, Input, Select } from '../components/ui'
+import { Alert, Spinner, Button, Input, Select, IsolateLogo } from '../components/ui'
 import { useTheme }    from '../contexts/ThemeContext'
 
 const FEATURE_CARDS = [
@@ -16,11 +16,11 @@ const FEATURE_CARDS = [
 
 export default function AuthPage() {
   const navigate = useNavigate()
-  const { login } = useAuth()
+  const { login, token, user } = useAuth()
   const { isDark, toggle: toggleTheme } = useTheme()
   const [mode, setMode] = useState('login')
 
-  const [email,      setEmail]      = useState('admin@smbflow.com')
+  const [email,      setEmail]      = useState('admin@isolate.com')
   const [password,   setPassword]   = useState('admin123')
   const [fullName,   setFullName]   = useState('')
   const [tenantName, setTenantName] = useState('')
@@ -28,6 +28,13 @@ export default function AuthPage() {
 
   const [error,   setError]   = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (token && user) {
+      const isAdmin = user.role === 'super_admin' || user.role === 'platform_admin'
+      navigate(isAdmin ? '/admin/copilot' : '/dashboard', { replace: true })
+    }
+  }, [token, user, navigate])
 
   const validate = () => {
     if (!email.trim())        { setError('Email is required');          return false }
@@ -50,7 +57,8 @@ export default function AuthPage() {
         data = await apiCall('/auth/signup', { method: 'POST', body: JSON.stringify({ email: email.trim(), password, full_name: fullName.trim(), tenant_name: tenantName.trim() || undefined, industry }) })
       }
       login(data.access_token, data.user)
-      navigate(data.user.role === 'super_admin' ? '/admin' : '/dashboard', { replace: true })
+      const isAdmin = data.user.role === 'super_admin' || data.user.role === 'platform_admin'
+      navigate(isAdmin ? '/admin/copilot' : '/dashboard', { replace: true })
     } catch (err) {
       setError(err.message)
     } finally {
@@ -79,10 +87,7 @@ export default function AuthPage() {
         >
           {/* Logo */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-primary shadow-glow-primary mb-4">
-              <Zap className="w-7 h-7 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-[rgb(var(--text-primary))]">SMBFlow</h1>
+            <IsolateLogo size="xl" isDark={isDark} className="mx-auto mb-4" />
             <p className="text-sm text-[rgb(var(--text-muted))] mt-1">Autonomous Multi-Agent Engine</p>
           </div>
 
@@ -155,7 +160,7 @@ export default function AuthPage() {
 
           {mode === 'login' && (
             <p className="text-xs text-[rgb(var(--text-muted))] text-center mt-4">
-              Default: admin@smbflow.com / admin123
+              Default: admin@isolate.com / admin123
             </p>
           )}
         </motion.div>

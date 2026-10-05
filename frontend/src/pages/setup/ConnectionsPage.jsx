@@ -334,7 +334,7 @@ export default function ConnectionsPage() {
               const conn = getConnForTool(tool.tool_name)
               const isConnected = conn?.status === 'connected' || conn?.status === 'CONNECTED'
               const isTesting = testingId === conn?.id
-              const desc = toolDescriptions[tool.tool_name] || 'Autonomous integration connector for SMBFlow pipelines.'
+              const desc = toolDescriptions[tool.tool_name] || 'Autonomous integration connector for Isolate pipelines.'
 
               return (
                 <div

@@ -4,9 +4,12 @@ import {
   Inbox, Workflow, Plug, CreditCard, FileSearch, LayoutDashboard, Users,
   Activity, LogOut, Building2, GitBranch, FileText, Cpu,
   ReceiptText, Layers, Zap, User, Cloud, Box, ChevronRight, Plus, Search,
-  Terminal, AlertTriangle, DollarSign, Receipt, Compass, Settings, ShieldCheck
+  Terminal, AlertTriangle, DollarSign, Receipt, Compass, Settings, ShieldCheck,
+  PanelLeftClose
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
+import { useTheme } from '../../contexts/ThemeContext'
+import { IsolateLogo, cn } from '../ui'
 
 // ── Primary Operations ────────────────────────────────────────────────────────
 const ownerPrimaryNav = [
@@ -73,8 +76,9 @@ const adminNav = [
   },
 ]
 
-export function Sidebar({ isAdmin = false, getBadge, onNavClick }) {
+export function Sidebar({ isAdmin = false, getBadge, onNavClick, collapsed = false, onToggleCollapse }) {
   const { user, logout } = useAuth()
+  const { isDark } = useTheme()
   const navigate = useNavigate()
 
   const enabledModules = user?.enabled_modules || []
@@ -93,51 +97,47 @@ export function Sidebar({ isAdmin = false, getBadge, onNavClick }) {
     navigate('/auth', { replace: true })
   }
 
-  const displayName = user?.full_name || user?.email || 'Account'
+  const rawDisplayName = user?.full_name || user?.email || 'Account'
+  const displayName = rawDisplayName.replace(/SMBFlow/gi, 'Isolate')
   const initials = displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
   const displayRole = isAdmin ? 'Platform Admin' : 'SMB Owner'
   const avatarUrl = user?.avatar_url || (user?.id ? localStorage.getItem(`avatar_${user.id}`) : null) || localStorage.getItem('smbflow_avatar')
 
   return (
-    <aside className="w-[230px] shrink-0 flex flex-col bg-white dark:bg-[#0b0f17] border-r border-slate-200 dark:border-[#233048] h-full select-none transition-colors">
-      {/* ── Brand / Logo Header ────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-100 dark:border-[#233048]">
-        <div
-          onClick={() => navigate(isAdmin ? '/admin/copilot' : '/copilot')}
-          className="flex items-center gap-2.5 cursor-pointer group"
-        >
-          {/* Clean enterprise logo mark */}
-          <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-xs">
-            <Zap className="w-4 h-4 fill-white" />
+    <aside
+      className={cn(
+        'shrink-0 flex flex-col bg-white dark:bg-[#0b0f17] border-r border-slate-200 dark:border-[#233048] h-full select-none transition-all duration-300 ease-in-out overflow-hidden z-20',
+        collapsed ? 'w-0 border-r-0 opacity-0 pointer-events-none' : 'w-[240px] opacity-100'
+      )}
+    >
+      <div className="w-[240px] min-w-[240px] flex flex-col h-full">
+        {/* ── Brand / Logo Header ────────────────────────────────────────────── */}
+        <div className="flex items-center justify-between px-3.5 py-3 border-b border-slate-100 dark:border-[#233048]">
+          <div
+            onClick={() => navigate(isAdmin ? '/admin/copilot' : '/copilot')}
+            className="flex items-center gap-2 cursor-pointer group hover:opacity-85 transition-opacity min-w-0"
+          >
+            <IsolateLogo size="sm" isDark={isDark} />
+            {isAdmin && (
+              <span className="text-[9px] font-bold uppercase bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-400 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800 shrink-0">
+                Admin
+              </span>
+            )}
           </div>
-          <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-white group-hover:text-blue-500 transition-colors">
-            SMBFlow
-          </span>
-          {isAdmin && (
-            <span className="text-[9px] font-bold uppercase bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-400 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800">
-              Admin
-            </span>
+
+          {/* Sidebar Collapse Action */}
+          {onToggleCollapse && (
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              className="w-7 h-7 rounded-lg hover:bg-slate-100 dark:hover:bg-[#182234] flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer shrink-0"
+              title="Collapse Sidebar"
+              aria-label="Collapse Sidebar"
+            >
+              <PanelLeftClose className="w-4 h-4" />
+            </button>
           )}
         </div>
-
-        {/* Quick action icons */}
-        <div className="flex items-center gap-1 text-slate-400 dark:text-slate-500">
-          <button
-            onClick={() => navigate('/workflows')}
-            className="w-6 h-6 rounded hover:bg-slate-100 dark:hover:bg-[#182234] flex items-center justify-center hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
-            title="Create Workflow"
-          >
-            <Plus className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => navigate('/workflow-library')}
-            className="w-6 h-6 rounded hover:bg-slate-100 dark:hover:bg-[#182234] flex items-center justify-center hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
-            title="Search Templates"
-          >
-            <Search className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
 
       {/* ── Main Navigation Area ───────────────────────────────────────────── */}
       <nav className="flex-1 flex flex-col justify-between overflow-y-auto px-2.5 py-3 space-y-4" aria-label="Sidebar navigation">
@@ -293,6 +293,7 @@ export function Sidebar({ isAdmin = false, getBadge, onNavClick }) {
             <LogOut size={13} />
           </button>
         </div>
+      </div>
       </div>
     </aside>
   )

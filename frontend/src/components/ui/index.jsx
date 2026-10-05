@@ -25,16 +25,16 @@ export function Spinner({ size = 'md', className = '', color = 'text-primary-500
 }
 
 // ── Button ────────────────────────────────────────────────────────────────────
-const BTN_BASE = 'inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed select-none'
+const BTN_BASE = 'inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed select-none'
 
 const BTN_VARIANTS = {
-  primary:  'bg-primary-500 hover:bg-primary-600 text-white shadow-md hover:shadow-glow-primary active:scale-[0.97]',
-  secondary:'bg-surface text-content border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-hover))] active:scale-[0.97]',
-  success:  'bg-success/90 hover:bg-success text-gray-900 shadow-md hover:shadow-glow-success active:scale-[0.97]',
-  danger:   'bg-danger/10 hover:bg-danger/20 text-danger border border-danger/30 active:scale-[0.97]',
-  warning:  'bg-warning/10 hover:bg-warning/20 text-warning border border-warning/30 active:scale-[0.97]',
-  ghost:    'bg-transparent hover:bg-[rgb(var(--bg-hover))] text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--text-primary))] active:scale-[0.97]',
-  outline:  'bg-transparent border border-[rgb(var(--border))] hover:border-primary-500/60 text-[rgb(var(--text-secondary))] hover:text-primary-500 active:scale-[0.97]',
+  primary: 'bg-primary-500 hover:bg-primary-600 text-white shadow-md hover:shadow-glow-primary active:scale-[0.97]',
+  secondary: 'bg-surface text-content border border-[rgb(var(--border))] hover:bg-[rgb(var(--bg-hover))] active:scale-[0.97]',
+  success: 'bg-success/90 hover:bg-success text-gray-900 shadow-md hover:shadow-glow-success active:scale-[0.97]',
+  danger: 'bg-danger/10 hover:bg-danger/20 text-danger border border-danger/30 active:scale-[0.97]',
+  warning: 'bg-warning/10 hover:bg-warning/20 text-warning border border-warning/30 active:scale-[0.97]',
+  ghost: 'bg-transparent hover:bg-[rgb(var(--bg-hover))] text-[rgb(var(--text-secondary))] hover:text-[rgb(var(--text-primary))] active:scale-[0.97]',
+  outline: 'bg-transparent border border-[rgb(var(--border))] hover:border-primary-500/60 text-[rgb(var(--text-secondary))] hover:text-primary-500 active:scale-[0.97]',
   gradient: 'bg-gradient-primary text-white shadow-md hover:shadow-glow-primary active:scale-[0.97]',
 }
 
@@ -71,7 +71,7 @@ export function Card({
 }) {
   return (
     <div className={cn(
-      'rounded-2xl border transition-all duration-200',
+      'rounded-2xl border transition-all duration-100',
       glass
         ? 'glass'
         : 'bg-[rgb(var(--bg-card))] border-[rgb(var(--border))]',
@@ -107,7 +107,7 @@ export function StatCard({ icon: Icon, label, value, color = '', sub, trend, cla
           {sub && <p className="text-xs text-[rgb(var(--text-muted))] mt-0.5">{sub}</p>}
         </div>
         {Icon && (
-          <div className={cn('p-2.5 rounded-xl opacity-80', color ? color.replace('text-','bg-').replace('400','400/15').replace('300','300/15') : 'bg-primary-500/10')}>
+          <div className={cn('p-2.5 rounded-xl opacity-80', color ? color.replace('text-', 'bg-').replace('400', '400/15').replace('300', '300/15') : 'bg-primary-500/10')}>
             {typeof Icon === 'string' ? <span className="text-xl flex items-center justify-center">{Icon}</span> : <Icon className={cn('w-5 h-5', color || 'text-primary-500')} strokeWidth={2} />}
           </div>
         )}
@@ -117,8 +117,8 @@ export function StatCard({ icon: Icon, label, value, color = '', sub, trend, cla
           {trend > 0
             ? <TrendingUp className="w-3.5 h-3.5 text-success" />
             : trend < 0
-            ? <TrendingDown className="w-3.5 h-3.5 text-danger" />
-            : <Minus className="w-3.5 h-3.5 text-[rgb(var(--text-muted))]" />}
+              ? <TrendingDown className="w-3.5 h-3.5 text-danger" />
+              : <Minus className="w-3.5 h-3.5 text-[rgb(var(--text-muted))]" />}
           <span className={trend > 0 ? 'text-success' : trend < 0 ? 'text-danger' : 'text-[rgb(var(--text-muted))]'}>
             {trend > 0 ? '+' : ''}{trend}%
           </span>
@@ -130,24 +130,24 @@ export function StatCard({ icon: Icon, label, value, color = '', sub, trend, cla
 
 // ── Badge ─────────────────────────────────────────────────────────────────────
 const BADGE_MAP = {
-  running:          'bg-success/15 text-success border border-success/30',
-  completed:        'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30',
+  running: 'bg-success/15 text-success border border-success/30',
+  completed: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30',
   'workflowstatus.completed': 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30',
-  failed:           'bg-danger/15 text-danger border border-danger/30',
-  stopped:          'bg-danger/15 text-danger border border-danger/30',
-  escalated:        'bg-warning/15 text-warning border border-warning/30',
-  paused:           'bg-warning/15 text-warning border border-warning/30',
-  pending:          'bg-[rgb(var(--text-muted))]/10 text-[rgb(var(--text-muted))] border border-[rgb(var(--border))]',
-  success:          'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30',
-  skipped:          'bg-[rgb(var(--text-muted))]/10 text-[rgb(var(--text-muted))] border border-[rgb(var(--border))]',
-  pending_a2a:      'bg-primary-500/15 text-primary-400 border border-primary-500/30',
+  failed: 'bg-danger/15 text-danger border border-danger/30',
+  stopped: 'bg-danger/15 text-danger border border-danger/30',
+  escalated: 'bg-warning/15 text-warning border border-warning/30',
+  paused: 'bg-warning/15 text-warning border border-warning/30',
+  pending: 'bg-[rgb(var(--text-muted))]/10 text-[rgb(var(--text-muted))] border border-[rgb(var(--border))]',
+  success: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30',
+  skipped: 'bg-[rgb(var(--text-muted))]/10 text-[rgb(var(--text-muted))] border border-[rgb(var(--border))]',
+  pending_a2a: 'bg-primary-500/15 text-primary-400 border border-primary-500/30',
 }
 
 const BADGE_DOTS = {
-  running:   'bg-success', completed: 'bg-emerald-400', failed: 'bg-danger',
-  stopped:   'bg-danger',  escalated: 'bg-warning',     paused: 'bg-warning',
-  pending:   'bg-[rgb(var(--text-muted))]', success: 'bg-emerald-400',
-  skipped:   'bg-[rgb(var(--text-muted))]',
+  running: 'bg-success', completed: 'bg-emerald-400', failed: 'bg-danger',
+  stopped: 'bg-danger', escalated: 'bg-warning', paused: 'bg-warning',
+  pending: 'bg-[rgb(var(--text-muted))]', success: 'bg-emerald-400',
+  skipped: 'bg-[rgb(var(--text-muted))]',
 }
 
 export function Badge({ status, className = '', dot = true }) {
@@ -186,11 +186,11 @@ export function Input({ label, hint, error, className = '', required, type = 'te
           type={inputType}
           autoComplete={props.autoComplete || (isPw ? 'current-password' : 'off')}
           className={cn(
-  'input-base',
-  Icon ? '!pl-10' : '',
-  isPw ? '!pr-10' : '',
-  error && '!border-danger !ring-0 focus:!border-danger focus:!ring-danger/20',
-)}
+            'input-base',
+            Icon ? '!pl-10' : '',
+            isPw ? '!pr-10' : '',
+            error && '!border-danger !ring-0 focus:!border-danger focus:!ring-danger/20',
+          )}
         />
         {isPw && (
           <button
@@ -261,12 +261,12 @@ export function Toggle({ checked, onChange, label, description, disabled = false
         aria-checked={checked}
         onClick={() => !disabled && onChange(!checked)}
         className={cn(
-          'relative w-11 h-6 rounded-full transition-all duration-300 flex-shrink-0',
+          'relative w-11 h-6 rounded-full transition-all duration-150 flex-shrink-0',
           checked ? 'bg-primary-500 shadow-md shadow-primary-500/30' : 'bg-[rgb(var(--border))]',
         )}
       >
         <div className={cn(
-          'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-300',
+          'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-150',
           checked ? 'translate-x-5' : 'translate-x-0',
         )} />
       </div>
@@ -332,10 +332,10 @@ export function Modal({ open, onClose, title, children, width = 'max-w-lg', subt
 
 // ── Alert ─────────────────────────────────────────────────────────────────────
 const ALERT_STYLES = {
-  info:    { cls: 'bg-primary-500/8 border-primary-500/25 text-primary-400', Icon: Info },
-  success: { cls: 'bg-success/8 border-success/25 text-success',            Icon: CheckCircle2 },
-  warning: { cls: 'bg-warning/8 border-warning/25 text-warning',            Icon: AlertTriangle },
-  error:   { cls: 'bg-danger/8 border-danger/25 text-danger',               Icon: XCircle },
+  info: { cls: 'bg-primary-500/8 border-primary-500/25 text-primary-400', Icon: Info },
+  success: { cls: 'bg-success/8 border-success/25 text-success', Icon: CheckCircle2 },
+  warning: { cls: 'bg-warning/8 border-warning/25 text-warning', Icon: AlertTriangle },
+  error: { cls: 'bg-danger/8 border-danger/25 text-danger', Icon: XCircle },
 }
 
 export function Alert({ type = 'info', children, onClose, className = '' }) {
@@ -406,7 +406,7 @@ export function TabGroup({ tabs, value, onChange, className = '' }) {
           key={tab.value}
           onClick={() => onChange(tab.value)}
           className={cn(
-            'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200',
+            'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-75',
             value === tab.value
               ? 'bg-[rgb(var(--bg-card))] text-[rgb(var(--text-primary))] shadow-sm'
               : 'text-[rgb(var(--text-muted))] hover:text-[rgb(var(--text-primary))] hover:bg-[rgb(var(--bg-hover))]',
@@ -427,11 +427,11 @@ export function TabGroup({ tabs, value, onChange, className = '' }) {
 
 // ── LiveDot ───────────────────────────────────────────────────────────────────
 const DOT_COLORS = {
-  green:  'bg-success',
-  red:    'bg-danger',
+  green: 'bg-success',
+  red: 'bg-danger',
   yellow: 'bg-warning',
-  blue:   'bg-primary-400',
-  gray:   'bg-[rgb(var(--text-muted))]',
+  blue: 'bg-primary-400',
+  gray: 'bg-[rgb(var(--text-muted))]',
 }
 
 export function LiveDot({ color = 'green', pulse = true, size = 'sm' }) {
@@ -463,7 +463,7 @@ export function Chip({ children, color = 'default', className = '' }) {
     primary: 'bg-primary-500/10 text-primary-400 border-primary-500/30',
     success: 'bg-success/10 text-success border-success/30',
     warning: 'bg-warning/10 text-warning border-warning/30',
-    danger:  'bg-danger/10 text-danger border-danger/30',
+    danger: 'bg-danger/10 text-danger border-danger/30',
   }
   return (
     <span className={cn('inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium border', CHIP_COLORS[color], className)}>
@@ -492,7 +492,7 @@ export function ProgressBar({ value = 0, max = 100, color = 'primary', label, sh
     primary: 'from-primary-500 to-accent',
     success: 'from-success to-emerald-400',
     warning: 'from-warning to-orange-400',
-    danger:  'from-danger to-red-400',
+    danger: 'from-danger to-red-400',
   }
   return (
     <div className={className}>
@@ -517,3 +517,6 @@ export function ProgressBar({ value = 0, max = 100, color = 'primary', label, sh
 export * from './Breadcrumbs'
 export * from './LoadingState'
 export * from './ErrorState'
+export { default as GlassSurface } from './GlassSurface'
+export { default as IsolateLogo } from './IsolateLogo'
+export { default as TiltedCard } from './TiltedCard'

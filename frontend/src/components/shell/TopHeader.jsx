@@ -6,11 +6,14 @@
 //   • live WebSocket connection status from the EXISTING WSContext
 // ─────────────────────────────────────────────────────────────────────────────
 import { Link, useLocation } from 'react-router-dom'
-import { ChevronRight, Sun, Moon } from 'lucide-react'
+import { ChevronRight, Sun, Moon, PanelLeftOpen, PanelLeftClose } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useWebSocket } from '../../contexts/WSContext'
 import { useTheme } from '../../contexts/ThemeContext'
 import { NotificationCenter } from './NotificationCenter'
+import { IsolateLogo } from '../ui'
+
+import { GlassSurface } from '../ui'
 
 const routeLabels = {
   dashboard:           'Dashboard',
@@ -56,7 +59,7 @@ function WSDot({ status }) {
   )
 }
 
-export function TopHeader() {
+export function TopHeader({ sidebarCollapsed = false, onToggleSidebar }) {
   const location = useLocation()
   const { user, isAdmin } = useAuth()
   const { status } = useWebSocket()
@@ -70,7 +73,8 @@ export function TopHeader() {
   }))
 
   const home = isAdmin ? '/admin' : '/dashboard'
-  const initials = (user?.full_name || user?.email || 'U')
+  const displayName = (user?.full_name || user?.email || 'U').replace(/SMBFlow/gi, 'Isolate')
+  const initials = displayName
     .split(' ')
     .map(n => n[0])
     .join('')
@@ -80,54 +84,93 @@ export function TopHeader() {
   const avatarUrl = user?.avatar_url || localStorage.getItem(`avatar_${user?.id}`) || localStorage.getItem('smbflow_avatar')
 
   return (
-    <header className="h-14 shrink-0 flex items-center justify-between px-6 bg-white dark:bg-[#0b0f17] border-b border-slate-200 dark:border-[#233048] transition-colors">
-      <nav className="flex items-center gap-1.5">
-        <Link to={home} className="text-sm text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 transition-colors">
-          SMBFlow
-        </Link>
-        {crumbs.map(crumb => (
-          <span key={crumb.to} className="flex items-center gap-1.5">
-            <ChevronRight size={13} className="text-slate-300 dark:text-slate-600" />
-            {crumb.isLast ? (
-              <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{crumb.label}</span>
-            ) : (
-              <Link to={crumb.to} className="text-sm text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 transition-colors">
-                {crumb.label}
+    <header className="h-14 shrink-0 bg-transparent border-b border-slate-200/50 dark:border-[#233048]/50 z-10 sticky top-0">
+      <GlassSurface width="100%" height="100%" backgroundOpacity={0.05} borderRadius={0}>
+        <div className="w-full h-full flex items-center justify-between px-6">
+          <div className="flex items-center gap-2 min-w-0">
+            {onToggleSidebar && (
+              <button
+                type="button"
+                onClick={onToggleSidebar}
+                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#182234] transition-colors flex items-center justify-center cursor-pointer shrink-0 mr-1 group"
+                title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              >
+                {sidebarCollapsed ? (
+                  <PanelLeftOpen className="w-4 h-4 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform" />
+                ) : (
+                  <PanelLeftClose className="w-4 h-4 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 transition-colors" />
+                )}
+              </button>
+            )}
+
+            {sidebarCollapsed && (
+              <Link
+                to={isAdmin ? '/admin/copilot' : '/copilot'}
+                className="flex items-center gap-1.5 mr-2 shrink-0 group hover:opacity-80 transition-opacity"
+                title="Isolate"
+              >
+                <IsolateLogo size="sm" isDark={isDark} />
+                {isAdmin && (
+                  <span className="text-[9px] font-bold uppercase bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-400 px-1.5 py-0.2 rounded border border-blue-200 dark:border-blue-800">
+                    Admin
+                  </span>
+                )}
               </Link>
             )}
-          </span>
-        ))}
-      </nav>
 
-      <div className="flex items-center gap-2.5">
-        {/* Global + Personal Notification Center */}
-        <NotificationCenter />
+            <nav className="flex items-center gap-1.5 min-w-0 overflow-hidden">
+              {crumbs.length === 0 ? (
+                <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{isAdmin ? 'Platform Overview' : 'Dashboard'}</span>
+              ) : (
+                crumbs.map((crumb, idx) => (
+                  <span key={crumb.to} className="flex items-center gap-1.5">
+                    {idx > 0 && <ChevronRight size={13} className="text-slate-300 dark:text-slate-600" />}
+                    {crumb.isLast ? (
+                      <span className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">{crumb.label}</span>
+                    ) : (
+                      <Link to={crumb.to} className="text-sm text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 transition-colors truncate">
+                        {crumb.label}
+                      </Link>
+                    )}
+                  </span>
+                ))
+              )}
+            </nav>
+          </div>
 
-        {/* Global Persistent Theme Toggle */}
-        <button
-          type="button"
-          onClick={toggle}
-          className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
-          title={`Switch to ${isDark ? 'Light' : 'Dark'} Mode`}
-        >
-          {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
-        </button>
+          <div className="flex items-center gap-2.5">
+            {/* Global + Personal Notification Center */}
+            <NotificationCenter />
 
-        <WSDot status={status} />
+            {/* Global Persistent Theme Toggle */}
+            <button
+              type="button"
+              onClick={toggle}
+              className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+              title={`Switch to ${isDark ? 'Light' : 'Dark'} Mode`}
+            >
+              {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
+            </button>
 
-        {/* Clickable Profile Avatar */}
-        <Link
-          to="/settings/general"
-          className="w-8 h-8 rounded-full bg-blue-600 hover:ring-2 hover:ring-blue-400 overflow-hidden flex items-center justify-center shadow-xs transition-all cursor-pointer"
-          title={`View Profile (${user?.full_name || user?.email || 'User'})`}
-        >
-          {avatarUrl ? (
-            <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-          ) : (
-            <span className="text-xs font-semibold text-white">{initials}</span>
-          )}
-        </Link>
-      </div>
+            <WSDot status={status} />
+
+            {/* Clickable Profile Avatar */}
+            <Link
+              to="/settings/general"
+              className="w-8 h-8 rounded-full bg-blue-600 hover:ring-2 hover:ring-blue-400 overflow-hidden flex items-center justify-center shadow-xs transition-all cursor-pointer"
+              title={`View Profile (${user?.full_name || user?.email || 'User'})`}
+            >
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-xs font-semibold text-white">{initials}</span>
+              )}
+            </Link>
+          </div>
+        </div>
+      </GlassSurface>
     </header>
   )
 }
+

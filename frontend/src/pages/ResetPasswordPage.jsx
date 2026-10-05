@@ -14,6 +14,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { IsolateLogo } from '../components/ui'
 import { Eye, EyeOff, AlertCircle, CheckCircle2, Loader2, Check } from 'lucide-react'
 import { createApiClient } from '../api/client'
 import { createAuthService } from '../api/services/auth.service'
@@ -70,11 +71,8 @@ export default function ResetPasswordPage() {
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        <div className="flex items-center gap-2.5 justify-center mb-8">
-          <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center">
-            <span className="text-white font-bold text-sm">S</span>
-          </div>
-          <span className="text-xl font-semibold text-slate-900">SMBFlow</span>
+        <div className="flex items-center justify-center mb-8">
+          <IsolateLogo size="lg" isDark={false} />
         </div>
 
         <div className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">

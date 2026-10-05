@@ -6,6 +6,8 @@
 // tall steps (like WorkflowGoals) remain fully accessible on small screens.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { GlassSurface, IsolateLogo } from '../../components/ui'
+
 export default function OnboardingLayout({ children }) {
   return (
     // h-screen + overflow-hidden on the outermost div creates the viewport
@@ -13,15 +15,14 @@ export default function OnboardingLayout({ children }) {
     // browser's native scroll restoration and mobile Safari bounce.
     <div className="h-screen bg-slate-50 flex flex-col overflow-hidden">
       {/* ── Sticky top bar ──────────────────────────────────────────────── */}
-      <header className="flex-shrink-0 w-full border-b border-slate-200 bg-white/80 backdrop-blur-sm z-10">
-        <div className="max-w-5xl mx-auto px-6 h-14 flex items-center">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center shadow-sm">
-              <span className="text-white font-bold text-xs">S</span>
+      <header className="flex-shrink-0 w-full bg-transparent border-b border-slate-200 z-10 sticky top-0">
+        <GlassSurface width="100%" height="100%" backgroundOpacity={0.05} borderRadius={0}>
+          <div className="w-full max-w-5xl mx-auto px-6 h-14 flex items-center">
+            <div className="flex items-center gap-2.5">
+              <IsolateLogo size="sm" isDark={false} />
             </div>
-            <span className="text-base font-semibold text-slate-900 tracking-tight">SMBFlow</span>
           </div>
-        </div>
+        </GlassSurface>
       </header>
 
       {/* ── Scrollable content area ─────────────────────────────────────── */}

@@ -19,6 +19,7 @@ import {
   HelpCircle, Sliders, Send, Clock, Check, ChevronDown,
   Maximize2, Minimize2, Activity, PlayCircle, Loader2, Copy,
   Sun, Moon, BrainCircuit, PenTool, UserCheck, Calendar,
+  Undo2, Redo2, PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react'
 import { useAuth }        from '../../contexts/AuthContext'
 import { useTheme }       from '../../contexts/ThemeContext'
@@ -1146,15 +1147,32 @@ function N8nConditionEdge({ id, sourceX, sourceY, targetX, targetY, sourcePositi
         fill="none"
         stroke="transparent"
         strokeWidth={16}
-        className="react-flow__edge-interaction"
+        className="react-flow__edge-interaction cursor-pointer"
       />
+      {/* Subtle guide track underneath */}
+      <path
+        d={edgePath}
+        fill="none"
+        stroke={strokeColor}
+        strokeWidth={1.5}
+        strokeOpacity={0.18}
+        className="pointer-events-none"
+      />
+      {/* Animated dotted/dashed line flowing outward from source to target */}
       <path
         id={id}
         d={edgePath}
         fill="none"
         markerEnd={markerEnd}
-        style={{ ...style, stroke: strokeColor, strokeWidth, transition: 'stroke 0.15s, stroke-width 0.15s' }}
-        className="react-flow__edge-path"
+        style={{
+          ...style,
+          stroke: strokeColor,
+          strokeWidth,
+          strokeDasharray: '8 4',
+          animation: 'flowDash 0.8s linear infinite',
+          transition: 'stroke 0.15s, stroke-width 0.15s',
+        }}
+        className="react-flow__edge-path n8n-condition-edge-path"
       />
       {/* Selected glow */}
       {selected && (
@@ -1163,7 +1181,7 @@ function N8nConditionEdge({ id, sourceX, sourceY, targetX, targetY, sourcePositi
           fill="none"
           stroke="#6366F1"
           strokeWidth={6}
-          strokeOpacity={0.18}
+          strokeOpacity={0.2}
           style={{ pointerEvents: 'none' }}
         />
       )}
@@ -1282,7 +1300,11 @@ function flowToDag(nodes, edges, meta) {
 }
 
 // ── FLOATING N8N CANVAS TOOLBAR ────────────────────────────────────────────────
-function N8nCanvasToolbar({ onOpenPalette, onZoomIn, onZoomOut, onFitView, onToggleMiniMap, showMiniMap, onOpenAICopilot }) {
+function N8nCanvasToolbar({
+  onOpenPalette, onZoomIn, onZoomOut, onFitView,
+  onToggleMiniMap, showMiniMap, onOpenAICopilot,
+  onUndo, canUndo, onRedo, canRedo,
+}) {
   return (
     <div className="absolute right-4 top-16 z-20 flex flex-col items-center bg-white/95 dark:bg-[#131b2a]/95 border border-slate-200 dark:border-[#233048] rounded-2xl p-1.5 shadow-xl backdrop-blur-md space-y-1">
       <button
@@ -1292,6 +1314,30 @@ function N8nCanvasToolbar({ onOpenPalette, onZoomIn, onZoomOut, onFitView, onTog
         title="Add Node or Tool (+)"
       >
         <Plus className="w-4 h-4 stroke-[2.5]" />
+      </button>
+
+      <div className="w-5 h-[1px] bg-slate-200 dark:bg-slate-800 my-0.5" />
+
+      {/* Undo Button */}
+      <button
+        type="button"
+        onClick={onUndo}
+        disabled={!canUndo}
+        className="w-8 h-8 rounded-xl hover:bg-slate-100 dark:hover:bg-[#1f2c40] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white flex items-center justify-center transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+        title="Undo (Ctrl+Z)"
+      >
+        <Undo2 className="w-3.5 h-3.5" />
+      </button>
+
+      {/* Redo Button */}
+      <button
+        type="button"
+        onClick={onRedo}
+        disabled={!canRedo}
+        className="w-8 h-8 rounded-xl hover:bg-slate-100 dark:hover:bg-[#1f2c40] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white flex items-center justify-center transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+        title="Redo (Ctrl+Y)"
+      >
+        <Redo2 className="w-3.5 h-3.5" />
       </button>
 
       <div className="w-5 h-[1px] bg-slate-200 dark:bg-slate-800 my-0.5" />
@@ -1610,7 +1656,7 @@ function NodeInspector({ node, onSave, onDelete, onDuplicate, onClose, allTools,
 }
 
 // ── MAIN N8N STYLE CANVAS ──────────────────────────────────────────────────────
-function FlowCanvas({ workflowName, dag, allTools, promptFiles, onSave, isSaving, onTestRun, onOpenAssign, onOpenAICopilot, api }) {
+function FlowCanvas({ workflowName, dag, allTools, promptFiles, onSave, isSaving, onTestRun, onOpenAssign, onOpenAICopilot, api, workflowsCollapsed, onExpandWorkflows }) {
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
   const [editingNode, setEditingNode]    = useState(null)
@@ -1627,6 +1673,85 @@ function FlowCanvas({ workflowName, dag, allTools, promptFiles, onSave, isSaving
   const isDark = theme === 'dark'
   const rfWrapper                        = useRef(null)
   const [rfInstance, setRfInstance]      = useState(null)
+
+  // ── Undo / Redo History Stack ───────────────────────────────────────────────
+  const nodesRef = useRef(nodes)
+  const edgesRef = useRef(edges)
+  useEffect(() => {
+    nodesRef.current = nodes
+  }, [nodes])
+  useEffect(() => {
+    edgesRef.current = edges
+  }, [edges])
+
+  const pastRef = useRef([])
+  const futureRef = useRef([])
+  const [canUndo, setCanUndo] = useState(false)
+  const [canRedo, setCanRedo] = useState(false)
+
+  const takeSnapshot = useCallback(() => {
+    if (!nodesRef.current?.length && !edgesRef.current?.length) return
+    const snapshot = {
+      nodes: JSON.parse(JSON.stringify(nodesRef.current || [])),
+      edges: JSON.parse(JSON.stringify(edgesRef.current || [])),
+    }
+    pastRef.current = [...pastRef.current.slice(-29), snapshot]
+    futureRef.current = []
+    setCanUndo(true)
+    setCanRedo(false)
+  }, [])
+
+  const handleUndo = useCallback(() => {
+    if (pastRef.current.length === 0) return
+    const prev = pastRef.current.pop()
+
+    // Save current state to future for redo
+    const currentSnapshot = {
+      nodes: JSON.parse(JSON.stringify(nodesRef.current || [])),
+      edges: JSON.parse(JSON.stringify(edgesRef.current || [])),
+    }
+    futureRef.current.push(currentSnapshot)
+
+    // Restore
+    setNodes(prev.nodes)
+    setEdges(prev.edges)
+    setDirty(true)
+    setCanUndo(pastRef.current.length > 0)
+    setCanRedo(true)
+  }, [setNodes, setEdges, setDirty])
+
+  const handleRedo = useCallback(() => {
+    if (futureRef.current.length === 0) return
+    const next = futureRef.current.pop()
+
+    // Save current state to past for undo
+    const currentSnapshot = {
+      nodes: JSON.parse(JSON.stringify(nodesRef.current || [])),
+      edges: JSON.parse(JSON.stringify(edgesRef.current || [])),
+    }
+    pastRef.current.push(currentSnapshot)
+
+    // Restore
+    setNodes(next.nodes)
+    setEdges(next.edges)
+    setDirty(true)
+    setCanUndo(true)
+    setCanRedo(futureRef.current.length > 0)
+  }, [setNodes, setEdges, setDirty])
+
+  const handleNodesChange = useCallback((changes) => {
+    const hasRemoval = changes.some(c => c.type === 'remove')
+    if (hasRemoval) takeSnapshot()
+    onNodesChange(changes)
+    setDirty(true)
+  }, [takeSnapshot, onNodesChange, setDirty])
+
+  const handleEdgesChange = useCallback((changes) => {
+    const hasRemoval = changes.some(c => c.type === 'remove')
+    if (hasRemoval) takeSnapshot()
+    onEdgesChange(changes)
+    setDirty(true)
+  }, [takeSnapshot, onEdgesChange, setDirty])
 
   const [meta, setMeta] = useState({
     workflow_id: workflowName,
@@ -1647,16 +1772,18 @@ function FlowCanvas({ workflowName, dag, allTools, promptFiles, onSave, isSaving
   }, [dag, workflowName])
 
   const onConnect = useCallback((params) => {
+    takeSnapshot()
     const edge = {
       ...params,
       type: 'conditionEdge',
+      animated: true,
       data: { condition: '1 item' },
       markerEnd: { type: MarkerType.ArrowClosed, width: 12, height: 12, color: '#10B981' },
       style: { stroke: '#10B981', strokeWidth: 2 },
     }
     setEdges(eds => addEdge(edge, eds))
     setDirty(true)
-  }, [setEdges, setDirty])
+  }, [takeSnapshot, setEdges, setDirty])
 
   const onDrop = useCallback((event) => {
     event.preventDefault()
@@ -1674,27 +1801,26 @@ function FlowCanvas({ workflowName, dag, allTools, promptFiles, onSave, isSaving
     else if (type.startsWith('logic_')) customType = 'logicNode'
     else if (type === 'group_section') customType = 'groupNode'
 
-    setNodes(ns => {
-      const newNode = {
+    takeSnapshot()
+    const newNode = {
+      id: nodeId,
+      type: customType,
+      position: pos,
+      data: {
         id: nodeId,
-        type: customType,
-        position: pos,
-        data: {
-          id: nodeId,
-          agentType: type,
-          name: pItem?.name || type,
-          subtitle: pItem?.subtitle || 'Response Text',
-          tools: [],
-          promptFile: '',
-          description: pItem?.description || '',
-        },
-      }
-      // Auto-open inspector for the dropped node
-      setTimeout(() => setEditingNode(newNode), 0)
-      return [...ns, newNode]
-    })
+        agentType: type,
+        name: pItem?.name || type,
+        subtitle: pItem?.subtitle || 'Response Text',
+        tools: [],
+        promptFile: '',
+        description: pItem?.description || '',
+      },
+    }
+    setNodes(ns => [...ns, newNode])
+    // Auto-open inspector for the dropped node
+    setTimeout(() => setEditingNode(newNode), 0)
     setDirty(true)
-  }, [rfInstance, setNodes, setDirty])
+  }, [takeSnapshot, rfInstance, setNodes, setDirty])
 
   const onDragStart = (e, agentType) => e.dataTransfer.setData('agentType', agentType)
 
@@ -1724,6 +1850,7 @@ function FlowCanvas({ workflowName, dag, allTools, promptFiles, onSave, isSaving
         description: pItem?.description || '',
       },
     }
+    takeSnapshot()
     setNodes(ns => [...ns, newNode])
     setDirty(true)
     // Auto-open inspector for click-to-add
@@ -1786,6 +1913,7 @@ function FlowCanvas({ workflowName, dag, allTools, promptFiles, onSave, isSaving
 
       const { nodes: newNodes, edges: newEdges } = dagToFlow(adaptedDag)
 
+      takeSnapshot()
       // Replace canvas content
       setNodes(newNodes)
       setEdges(newEdges)
@@ -1831,6 +1959,7 @@ function FlowCanvas({ workflowName, dag, allTools, promptFiles, onSave, isSaving
   // ── Duplicate a node ────────────────────────────────────────────────────────
   // Creates a new node with a unique ID, copied data, offset 40px down-right.
   const handleDuplicateNode = useCallback((node) => {
+    takeSnapshot()
     const newId = `${node.id}_copy_${Date.now().toString(36)}`
     const newNode = {
       ...node,
@@ -1849,12 +1978,14 @@ function FlowCanvas({ workflowName, dag, allTools, promptFiles, onSave, isSaving
     }
     setNodes(ns => [...ns, newNode])
     setDirty(true)
-  }, [setNodes, setDirty])
+  }, [takeSnapshot, setNodes, setDirty])
 
   // ── Keyboard shortcuts ───────────────────────────────────────────────────────
   // Backspace → delete selected node (supplement React Flow's Delete key)
   // Escape    → clear selection & close inspector
   // Ctrl/Cmd+S → save DAG
+  // Ctrl/Cmd+Z → Undo
+  // Ctrl/Cmd+Shift+Z / Ctrl/Cmd+Y → Redo
   useEffect(() => {
     const onKeyDown = (e) => {
       // Skip when focus is inside any input/textarea so typing isn't intercepted
@@ -1862,12 +1993,33 @@ function FlowCanvas({ workflowName, dag, allTools, promptFiles, onSave, isSaving
       const isInput = tag === 'input' || tag === 'textarea' || tag === 'select'
         || document.activeElement?.isContentEditable
 
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        if (!isInput) {
+          e.preventDefault()
+          if (e.shiftKey) {
+            handleRedo()
+          } else {
+            handleUndo()
+          }
+        }
+        return
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        if (!isInput) {
+          e.preventDefault()
+          handleRedo()
+        }
+        return
+      }
+
       if (e.key === 'Backspace' && !isInput) {
         // Delete currently selected nodes (React Flow's "Delete" key already handles
         // this, but Backspace is also expected in most canvas editors)
         setNodes(ns => {
           const toRemove = new Set(ns.filter(n => n.selected).map(n => n.id))
           if (toRemove.size === 0) return ns
+          takeSnapshot()
           setEdges(es => es.filter(e => !toRemove.has(e.source) && !toRemove.has(e.target)))
           return ns.filter(n => !toRemove.has(n.id))
         })
@@ -1892,7 +2044,7 @@ function FlowCanvas({ workflowName, dag, allTools, promptFiles, onSave, isSaving
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [handleSave, setNodes, setEdges, setDirty])
+  }, [handleUndo, handleRedo, takeSnapshot, handleSave, setNodes, setEdges, setDirty])
 
   // ── Test Workflow — calls the real backend sandbox endpoint ─────────────────
   // Pre-flight: validate all executable nodes before hitting the backend.
@@ -1974,20 +2126,34 @@ function FlowCanvas({ workflowName, dag, allTools, promptFiles, onSave, isSaving
     <div className="flex flex-col h-full bg-slate-50 dark:bg-[#0d1117] text-slate-900 dark:text-white relative select-none">
       
       {/* ── Top Bar ── */}
-      <div className="px-5 py-2.5 bg-white dark:bg-[#121824] border-b border-slate-200 dark:border-[#233048] flex items-center justify-between shrink-0 z-20 shadow-sm">
+      <div className="h-13 px-4 bg-white dark:bg-[#121824] border-b border-slate-200 dark:border-[#233048] flex items-center justify-between shrink-0 z-20 shadow-xs gap-3">
         
-        {/* Left: Breadcrumb */}
-        <div className="flex items-center gap-2.5">
-          <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-            <span>Personal</span>
-            <span className="text-slate-300 dark:text-slate-600">/</span>
-            <span className="text-slate-900 dark:text-white font-bold tracking-tight">{meta.name || workflowName}</span>
+        {/* Left: Breadcrumb & Expand Button */}
+        <div className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
+          {workflowsCollapsed && onExpandWorkflows && (
+            <button
+              type="button"
+              onClick={onExpandWorkflows}
+              className="h-8 px-2.5 bg-slate-100 dark:bg-[#1b2538] hover:bg-blue-50 dark:hover:bg-[#25334c] text-slate-700 dark:text-slate-200 hover:text-blue-600 dark:hover:text-blue-400 border border-slate-200 dark:border-[#2a3850] rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 shadow-2xs group"
+              title="Expand Workflows Panel"
+            >
+              <PanelLeftOpen className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform" />
+              <span className="hidden sm:inline">Workflows</span>
+            </button>
+          )}
+          <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+            <span
+              className="text-slate-900 dark:text-white font-bold text-xs sm:text-sm tracking-tight truncate block"
+              title={meta.name || workflowName}
+            >
+              {meta.name || workflowName}
+            </span>
+            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" title="Active Workflow" />
           </div>
-          <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
         </div>
 
-        {/* Center: Editor | Executions | Evaluations Switcher */}
-        <div className="flex items-center bg-slate-100 dark:bg-[#090d16] border border-slate-200 dark:border-[#233048] rounded-xl p-0.5 text-xs font-semibold">
+        {/* Center: Editor | Executions | Evaluations Switcher (shown on wide screens only) */}
+        <div className="hidden 2xl:flex items-center bg-slate-100 dark:bg-[#090d16] border border-slate-200 dark:border-[#233048] rounded-xl p-0.5 text-xs font-semibold shrink-0">
           {[
             { id: 'editor',      label: 'Editor' },
             { id: 'executions',  label: 'Executions' },
@@ -2008,41 +2174,57 @@ function FlowCanvas({ workflowName, dag, allTools, promptFiles, onSave, isSaving
           ))}
         </div>
 
-        {/* Right: Theme Toggle + Actions */}
-        <div className="flex items-center gap-2">
-          {/* Light / Dark Mode Toggle */}
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="w-8 h-8 rounded-xl flex items-center justify-center border border-slate-200 dark:border-[#2a3850] bg-slate-100 dark:bg-[#1b2538] text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:border-slate-300 dark:hover:border-slate-600 transition-all cursor-pointer"
-            title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          >
-            {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-          </button>
+        {/* Right: Actions */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Undo / Redo Controls */}
+          <div className="flex items-center gap-0.5 bg-slate-100 dark:bg-[#1b2538] border border-slate-200 dark:border-[#2a3850] rounded-xl p-0.5 h-8">
+            <button
+              type="button"
+              onClick={handleUndo}
+              disabled={!canUndo}
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-[#25334c] transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed shadow-2xs"
+              title="Undo (Ctrl+Z)"
+              aria-label="Undo"
+            >
+              <Undo2 className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={handleRedo}
+              disabled={!canRedo}
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white dark:hover:bg-[#25334c] transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed shadow-2xs"
+              title="Redo (Ctrl+Y)"
+              aria-label="Redo"
+            >
+              <Redo2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
 
           {/* Test Workflow Button */}
           <button
             type="button"
             disabled={testingWorkflow}
             onClick={handleTestWorkflow}
-            className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-[#1b2538] hover:bg-slate-200 dark:hover:bg-[#25334c] text-slate-700 dark:text-white border border-slate-200 dark:border-[#2a3850] text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            className="h-8 px-3 rounded-xl bg-slate-100 dark:bg-[#1b2538] hover:bg-slate-200 dark:hover:bg-[#25334c] text-slate-700 dark:text-white border border-slate-200 dark:border-[#2a3850] text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shrink-0"
+            title="Test Workflow Execution"
           >
             {testingWorkflow ? (
               <>
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-500" />
-                <span>Running...</span>
+                <span className="hidden sm:inline">Running...</span>
               </>
             ) : (
               <>
-                <Play className="w-3 h-3 text-emerald-500 fill-emerald-500" />
-                <span>Test workflow</span>
+                <Play className="w-3.5 h-3.5 text-emerald-500 fill-emerald-500" />
+                <span className="hidden sm:inline">Test workflow</span>
+                <span className="sm:hidden">Test</span>
               </>
             )}
           </button>
 
           {/* Publish Toggle */}
-          <div className="flex items-center gap-2 bg-slate-100 dark:bg-[#1b2538] border border-slate-200 dark:border-[#2a3850] rounded-xl px-2.5 py-1 text-xs">
-            <span className="text-slate-600 dark:text-slate-300 font-semibold text-[11px]">Publish</span>
+          <div className="h-8 flex items-center gap-2 bg-slate-100 dark:bg-[#1b2538] border border-slate-200 dark:border-[#2a3850] rounded-xl px-2.5 text-xs shrink-0">
+            <span className="text-slate-600 dark:text-slate-300 font-semibold text-[11px] hidden md:inline">Publish</span>
             <button
               type="button"
               onClick={() => setIsPublished(p => !p)}
@@ -2050,22 +2232,36 @@ function FlowCanvas({ workflowName, dag, allTools, promptFiles, onSave, isSaving
                 'w-7 h-4 rounded-full transition-colors relative cursor-pointer',
                 isPublished ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'
               )}
+              title={isPublished ? 'Workflow is Live' : 'Workflow is Paused'}
             >
-              <div className={cn(
-                'w-3 h-3 rounded-full bg-white transition-transform absolute top-0.5',
-                isPublished ? 'left-3.5' : 'left-0.5'
-              )} />
+              <div
+                className={cn(
+                  'w-3 h-3 rounded-full bg-white transition-transform absolute top-0.5',
+                  isPublished ? 'left-3.5' : 'left-0.5'
+                )}
+              />
             </button>
           </div>
 
+          {/* Save Button */}
           <button
             type="button"
             onClick={handleSave}
             disabled={isSaving}
-            className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
+            className="h-8 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:bg-blue-400 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs shrink-0"
+            title="Save DAG Changes (Ctrl+S)"
           >
-            {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-            <span>Save DAG</span>
+            {isSaving ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+                <span>Saving...</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-3.5 h-3.5 text-white" />
+                <span>Save DAG</span>
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -2082,6 +2278,10 @@ function FlowCanvas({ workflowName, dag, allTools, promptFiles, onSave, isSaving
           onToggleMiniMap={() => setShowMiniMap(m => !m)}
           showMiniMap={showMiniMap}
           onOpenAICopilot={onOpenAICopilot}
+          onUndo={handleUndo}
+          canUndo={canUndo}
+          onRedo={handleRedo}
+          canRedo={canRedo}
         />
 
         {/* Palette Drawer */}
@@ -2096,8 +2296,9 @@ function FlowCanvas({ workflowName, dag, allTools, promptFiles, onSave, isSaving
         <ReactFlow
           nodes={nodes}
           edges={displayEdges}
-          onNodesChange={(changes) => { onNodesChange(changes); setDirty(true) }}
-          onEdgesChange={(changes) => { onEdgesChange(changes); setDirty(true) }}
+          onNodesChange={handleNodesChange}
+          onEdgesChange={handleEdgesChange}
+          onNodeDragStart={takeSnapshot}
           onConnect={onConnect}
           onInit={setRfInstance}
           onDrop={onDrop}
@@ -2107,6 +2308,7 @@ function FlowCanvas({ workflowName, dag, allTools, promptFiles, onSave, isSaving
           onEdgeClick={(_, edge) => setSelectedEdgeId(prev => prev === edge.id ? null : edge.id)}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
+          defaultEdgeOptions={{ type: 'conditionEdge', animated: true }}
           fitView
           fitViewOptions={{ padding: 0.25 }}
           minZoom={0.2}
@@ -2156,10 +2358,12 @@ function FlowCanvas({ workflowName, dag, allTools, promptFiles, onSave, isSaving
               onClose={() => setEditingNode(null)}
               onDuplicate={(node) => { handleDuplicateNode(node); setEditingNode(null) }}
               onSave={(id, data) => {
+                takeSnapshot()
                 setNodes(ns => ns.map(n => n.id === id ? { ...n, data } : n))
                 setDirty(true)
               }}
               onDelete={(id) => {
+                takeSnapshot()
                 setNodes(ns => ns.filter(n => n.id !== id))
                 setEdges(es => es.filter(e => e.source !== id && e.target !== id))
                 setDirty(true)
@@ -2591,7 +2795,7 @@ function AICopilotModal({ open, onClose, api, onWorkflowGenerated }) {
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="text-sm font-bold tracking-tight">SMBFlow AI Workflow Copilot</h3>
+              <h3 className="text-sm font-bold tracking-tight">Isolate AI Workflow Copilot</h3>
               <p className="text-[11px] text-white/80">Generate complete multi-agent DAG automations from natural language</p>
             </div>
           </div>
@@ -2702,6 +2906,7 @@ export default function WorkflowBuilder() {
   const [aiCopilotOpen, setAiCopilotOpen] = useState(false)
   const [testDrawerOpen, setTestDrawerOpen] = useState(false)
   const [assignModalOpen, setAssignModalOpen] = useState(false)
+  const [workflowsCollapsed, setWorkflowsCollapsed] = useState(false)
 
   // Form state for creating new custom workflow
   const [formName, setFormName]         = useState('')
@@ -2904,20 +3109,35 @@ export default function WorkflowBuilder() {
 
       <div className="flex-1 flex min-h-0 relative">
         
-        {/* ── Left Workflow List Sidebar ── */}
-        <div className="w-56 shrink-0 bg-white dark:bg-[#0f1522] border-r border-slate-200 dark:border-[#233048] flex flex-col h-full z-10 select-none">
-          <div className="p-3 border-b border-slate-200 dark:border-[#233048] flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Workflows</span>
-            <button
-              onClick={() => setShowCreate(true)}
-              className="p-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white"
-              title="Create Custom Workflow"
-            >
-              <Plus className="w-3.5 h-3.5" />
-            </button>
+        {/* ── Left Workflow List Sidebar (Collapsible) ── */}
+        <div
+          className={cn(
+            'shrink-0 bg-white dark:bg-[#0f1522] border-r border-slate-200 dark:border-[#233048] flex flex-col h-full z-10 select-none transition-all duration-300 ease-in-out overflow-hidden',
+            workflowsCollapsed ? 'w-0 opacity-0 border-r-0 pointer-events-none' : 'w-56 opacity-100'
+          )}
+        >
+          <div className="h-13 px-3.5 border-b border-slate-200 dark:border-[#233048] flex items-center justify-between min-w-[224px]">
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Workflows</span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setShowCreate(true)}
+                className="w-7 h-7 rounded-lg bg-blue-600 hover:bg-blue-500 text-white cursor-pointer transition-colors flex items-center justify-center shadow-xs"
+                title="Create Custom Workflow"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setWorkflowsCollapsed(true)}
+                className="w-7 h-7 rounded-lg hover:bg-slate-100 dark:hover:bg-[#182234] text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors flex items-center justify-center cursor-pointer"
+                title="Collapse Workflows Panel"
+              >
+                <PanelLeftClose className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          <div className="flex-1 overflow-y-auto p-2 space-y-1 min-w-[224px]">
             {workflows.map(w => {
               const active = selected === w.name
               return (
@@ -2940,7 +3160,7 @@ export default function WorkflowBuilder() {
         </div>
 
         {/* Center / Right Canvas */}
-        <div className="flex-1 min-w-0 min-h-0">
+        <div className="flex-1 min-w-0 min-h-0 relative">
           {selected && dag ? (
             <ReactFlowProvider>
               <FlowCanvas
@@ -2954,6 +3174,8 @@ export default function WorkflowBuilder() {
                 onOpenAssign={() => setAssignModalOpen(true)}
                 onOpenAICopilot={() => setAiCopilotOpen(true)}
                 api={api}
+                workflowsCollapsed={workflowsCollapsed}
+                onExpandWorkflows={() => setWorkflowsCollapsed(false)}
               />
             </ReactFlowProvider>
           ) : (

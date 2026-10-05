@@ -14,6 +14,7 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
+import { IsolateLogo } from '../../components/ui'
 import { OnboardingProvider, useOnboarding } from '../../contexts/OnboardingContext'
 import OnboardingLayout from './OnboardingLayout'
 import WelcomeStep      from './WelcomeStep'
@@ -76,11 +77,8 @@ export default function OnboardingPage() {
   if (authLoading || !token || !user) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <div className="flex items-center gap-2.5 mb-4">
-          <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center shadow-sm">
-            <span className="text-white font-bold text-sm">S</span>
-          </div>
-          <span className="text-xl font-semibold text-slate-900">SMBFlow</span>
+        <div className="mb-4">
+          <IsolateLogo size="md" isDark={false} />
         </div>
         <div className="flex items-center gap-2 text-slate-500 text-sm">
           <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />

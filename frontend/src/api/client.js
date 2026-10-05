@@ -49,12 +49,10 @@ export async function apiCall(path, options = {}, token = null) {
   }
 
   if (!res.ok) {
-    // Authenticated session expiry: a 401 returned while a bearer token was
-    // attached means the token is no longer valid. Signal AuthContext to clear
-    // auth (which also tears down the authenticated WebSocket) and redirect.
-    // Unauthenticated calls (login/forgot/reset use token === null) are exempt,
-    // so their 401s are handled inline as ordinary errors.
-    if (res.status === 401 && token) {
+    // Authenticated session expiry:
+    // Only fire session expiry when an explicit 401 occurs on core identity verification (/auth/me),
+    // preventing spurious 401s on optional tool/admin sub-queries from kicking the user out.
+    if (res.status === 401 && token && cleanPath.startsWith('/auth/me')) {
       emitSessionExpired()
     }
 

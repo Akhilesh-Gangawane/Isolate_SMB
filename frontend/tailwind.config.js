@@ -7,6 +7,7 @@ export default {
       fontFamily: {
         sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
         mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+        caveat: ['Caveat', 'cursive'],
       },
       colors: {
         primary:  { DEFAULT: '#6C63FF', 50: '#F0EFFF', 100: '#E0DEFF', 200: '#C1BCFF', 300: '#A29AFF', 400: '#8379FF', 500: '#6C63FF', 600: '#5550E0', 700: '#3E3DBF', 800: '#292B9F', 900: '#161880' },

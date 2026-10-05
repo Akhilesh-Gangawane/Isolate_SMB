@@ -12,7 +12,8 @@ import { onSessionExpired } from '../api/authEvents'
 
 const AuthContext = createContext(null)
 
-const USER_STORAGE_KEY = 'smbflow_user_profile'
+const USER_STORAGE_KEY = 'isolate_user_profile'
+const TOKEN_STORAGE_KEY = 'isolate_auth_token'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
@@ -22,16 +23,37 @@ export const supabase = (supabaseUrl && supabaseAnonKey && !supabaseAnonKey.star
 
 function loadStoredUser() {
   try {
-    return JSON.parse(localStorage.getItem(USER_STORAGE_KEY) || 'null')
+    return JSON.parse(
+      localStorage.getItem(USER_STORAGE_KEY) ||
+      localStorage.getItem('smbflow_user_profile') ||
+      'null'
+    )
+  } catch {
+    return null
+  }
+}
+
+function loadStoredToken() {
+  try {
+    return (
+      localStorage.getItem(TOKEN_STORAGE_KEY) ||
+      localStorage.getItem('smbflow_auth_token') ||
+      null
+    )
   } catch {
     return null
   }
 }
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(null)
+  const [token, setToken] = useState(() => loadStoredToken())
   const [user, setUser] = useState(() => loadStoredUser())
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => {
+    const u = loadStoredUser()
+    const t = loadStoredToken()
+    if (u && t) return false
+    return !!supabase
+  })
   const [sessionExpired, setSessionExpired] = useState(false)
 
   const login = useCallback((newToken, newUser) => {
@@ -39,7 +61,14 @@ export function AuthProvider({ children }) {
     setUser(newUser)
     setSessionExpired(false)
     try {
-      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(newUser))
+      if (newToken) {
+        localStorage.setItem(TOKEN_STORAGE_KEY, newToken)
+        localStorage.setItem('smbflow_auth_token', newToken)
+      }
+      if (newUser) {
+        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(newUser))
+        localStorage.setItem('smbflow_user_profile', JSON.stringify(newUser))
+      }
     } catch (_) {}
   }, [])
 
@@ -50,7 +79,10 @@ export function AuthProvider({ children }) {
     setToken(null)
     setUser(null)
     try {
+      localStorage.removeItem(TOKEN_STORAGE_KEY)
+      localStorage.removeItem('smbflow_auth_token')
       localStorage.removeItem(USER_STORAGE_KEY)
+      localStorage.removeItem('smbflow_user_profile')
     } catch (_) {}
   }, [])
 
@@ -59,14 +91,33 @@ export function AuthProvider({ children }) {
   // Hydrate profile via FastAPI /auth/me or fallback to session metadata
   const processSession = useCallback(async (session) => {
     if (!session) {
+      // If we already have stored local credentials (from direct/FastAPI login),
+      // do NOT clear them. Supabase auth is only active when Google OAuth is used.
+      const storedToken = loadStoredToken()
+      const storedUser = loadStoredUser()
+      if (storedToken && storedUser) {
+        setToken(storedToken)
+        setUser(storedUser)
+        setLoading(false)
+        return
+      }
       setToken(null)
       setUser(null)
-      try { localStorage.removeItem(USER_STORAGE_KEY) } catch (_) {}
+      try {
+        localStorage.removeItem(TOKEN_STORAGE_KEY)
+        localStorage.removeItem('smbflow_auth_token')
+        localStorage.removeItem(USER_STORAGE_KEY)
+        localStorage.removeItem('smbflow_user_profile')
+      } catch (_) {}
       setLoading(false)
       return
     }
 
     setToken(session.access_token)
+    try {
+      localStorage.setItem(TOKEN_STORAGE_KEY, session.access_token)
+      localStorage.setItem('smbflow_auth_token', session.access_token)
+    } catch (_) {}
     try {
       const authApi = createAuthService(createApiClient(session.access_token))
       const profile = await authApi.me().catch(() => null)
@@ -145,7 +196,10 @@ export function AuthProvider({ children }) {
       })
       setUser(null)
       try {
+        localStorage.removeItem(TOKEN_STORAGE_KEY)
+        localStorage.removeItem('smbflow_auth_token')
         localStorage.removeItem(USER_STORAGE_KEY)
+        localStorage.removeItem('smbflow_user_profile')
       } catch (_) {}
     })
   }, [])
